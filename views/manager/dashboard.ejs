@@ -1,0 +1,117 @@
+<%- include('../partials/head', { title: 'Manager dashboard' }) %>
+
+<h1>Home</h1>
+<p class="muted">Welcome, <%= manager.name %>.</p>
+
+<% if (counts.tools === 0 && counts.sites === 0 && counts.materials === 0) { %>
+  <div class="card empty-state">
+    <div class="empty-state__icon">👋</div>
+    <p><strong>Welcome to Tool Tracker!</strong> Let's get set up.</p>
+    <p class="muted small">A few things to do first:</p>
+    <div class="form-actions">
+      <a class="btn" href="/manager/tools/new">+ Add your first tool</a>
+      <a class="btn btn-ghost" href="/manager/sites/new">+ Add a job site</a>
+      <% if (manager.role === 'manager') { %><a class="btn btn-ghost" href="/manager/employees/new">+ Add people</a><% } %>
+    </div>
+  </div>
+<% } %>
+
+<a class="btn btn-huge btn-scan" href="/scan">📷 Scan a tool</a>
+
+<div class="menu-grid">
+  <a class="menu-card" href="/manager/tools">
+    <span class="menu-card__icon">🔧</span>
+    <span class="menu-card__text"><span class="menu-card__label">Tools</span><span class="menu-card__count"><%= counts.tools %> total · <%= counts.out %> out</span></span>
+  </a>
+  <a class="menu-card" href="/manager/materials">
+    <span class="menu-card__icon">🧱</span>
+    <span class="menu-card__text"><span class="menu-card__label">Materials</span><span class="menu-card__count"><%= counts.materials %> item<%= counts.materials === 1 ? '' : 's' %></span></span>
+  </a>
+  <% if (manager.role === 'manager') { %>
+  <a class="menu-card" href="/manager/labels">
+    <span class="menu-card__icon">🏷️</span>
+    <span class="menu-card__text"><span class="menu-card__label">Print Labels</span><span class="menu-card__count">QR stickers</span></span>
+  </a>
+  <a class="menu-card" href="/manager/employees">
+    <span class="menu-card__icon">👤</span>
+    <span class="menu-card__text"><span class="menu-card__label">People</span><span class="menu-card__count"><%= counts.employees %> active</span></span>
+  </a>
+  <% } %>
+  <a class="menu-card" href="/manager/sites">
+    <span class="menu-card__icon">📍</span>
+    <span class="menu-card__text"><span class="menu-card__label">Sites</span><span class="menu-card__count"><%= counts.sites %> active</span></span>
+  </a>
+  <% if (manager.role === 'manager') { %>
+  <a class="menu-card" href="/manager/reports">
+    <span class="menu-card__icon">📊</span>
+    <span class="menu-card__text"><span class="menu-card__label">Reports</span><span class="menu-card__count">Export &amp; audit</span></span>
+  </a>
+  <a class="menu-card" href="/manager/beacons">
+    <span class="menu-card__icon">📡</span>
+    <span class="menu-card__text"><span class="menu-card__label">Beacons</span><span class="menu-card__count"><%= counts.beacons %> seen</span></span>
+  </a>
+  <% } %>
+</div>
+
+<!-- ===================== OUT RIGHT NOW ===================== -->
+<h2>Out right now <span class="muted">(<%= totalOut %>)</span></h2>
+
+<% if (totalOut === 0) { %>
+  <div class="card card--center"><p class="muted">Nothing is signed out. Everything's in. 🎉</p></div>
+<% } else { %>
+  <% bySite.forEach(function(group) { %>
+    <div class="card site-group">
+      <h3 class="site-group__head">📍 <%= group.site %> <span class="muted">· <%= group.items.length %> tool<%= group.items.length === 1 ? '' : 's' %></span></h3>
+      <ul class="out-list">
+        <% group.items.forEach(function(item) { %>
+          <% const days = h.daysSince(item.time_out); const overdue = days > 7; %>
+          <li class="out-item <%= overdue ? 'out-item--overdue' : '' %>">
+            <div class="out-item__main">
+              <a href="/t/<%= item.short_id %>"><strong><%= item.tool_name %></strong></a>
+              <span class="muted">— <%= item.employee_name %></span>
+            </div>
+            <div class="out-item__dur">
+              <%= h.durationSince(item.time_out) %>
+              <% if (overdue) { %><span class="flag-overdue">⚠ <%= days %> days</span><% } %>
+            </div>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+  <% }) %>
+  <p class="muted small">⚠ = out more than 7 days.</p>
+<% } %>
+
+<!-- ===================== STATS ===================== -->
+<div class="page-head">
+  <h2>Stats</h2>
+  <% if (manager.role === 'manager') { %>
+  <a class="btn btn-ghost btn-sm" href="/manager/export/checkouts.csv">⬇ Export history (CSV)</a>
+  <% } %>
+</div>
+<div class="stats-cols">
+  <div class="card">
+    <h3>Most-used tools</h3>
+    <% if (mostUsed.length === 0) { %>
+      <p class="muted">No checkouts recorded yet.</p>
+    <% } else { %>
+      <ul class="rank">
+        <% mostUsed.forEach(function(t) { %>
+          <li><span><%= t.name %></span><span class="rank__num"><%= t.uses %> time<%= t.uses === 1 ? '' : 's' %></span></li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+  <div class="card">
+    <h3>Never used <span class="muted">(<%= neverUsed.length %>)</span></h3>
+    <% if (neverUsed.length === 0) { %>
+      <p class="muted">Every tool has been used at least once.</p>
+    <% } else { %>
+      <ul class="rank">
+        <% neverUsed.forEach(function(t) { %><li><span><%= t.name %></span></li><% }) %>
+      </ul>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/foot') %>

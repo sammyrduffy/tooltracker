@@ -1,0 +1,47 @@
+<%- include('partials/head', { title: 'Welcome' }) %>
+
+<h1>Welcome to Tool Tracker</h1>
+<p class="muted">Two quick steps to get set up on your phone.</p>
+
+<% if (done) { %>
+  <div class="card card--center">
+    <p><strong>You're all set, <%= done %>!</strong></p>
+    <p class="muted">Your account has been created. Use the PIN you just chose to sign in.</p>
+    <a class="btn" href="/manager/login">Sign in now</a>
+  </div>
+<% } else { %>
+
+<div class="card">
+  <h2>1. Save this app to your phone</h2>
+  <p class="muted small">This makes Tool Tracker open like a regular app, with its own icon.</p>
+  <p><strong>iPhone (Safari):</strong> tap the Share icon <code>⬆️</code>, then <strong>Add to Home Screen</strong>.</p>
+  <p><strong>Android (Chrome):</strong> tap the menu <code>⋮</code>, then <strong>Add to Home screen</strong> (or <strong>Install app</strong>).</p>
+</div>
+
+<div class="card">
+  <h2>2. Create your sign-in</h2>
+  <p class="muted small">Pick your name and a 4-digit PIN. You'll use these every time you sign tools in or out.</p>
+
+  <% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+  <form method="post" action="/welcome" class="form">
+    <label>Your name
+      <input type="text" name="name" required maxlength="60" placeholder="e.g. Jordan Smith">
+    </label>
+    <label>Choose a 4-digit PIN
+      <input type="password" name="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required placeholder="••••">
+    </label>
+    <button type="submit" class="btn btn-big">Create my account</button>
+  </form>
+</div>
+
+<div class="card qr-box">
+  <h2>Sharing this with others?</h2>
+  <p class="muted small">Anyone can scan this code or open the link below to get set up the same way.</p>
+  <img class="qr-preview" src="/welcome/qr.png" alt="QR code linking to this welcome page">
+  <p class="muted small"><%= url %>/welcome</p>
+</div>
+
+<% } %>
+
+<%- include('partials/foot') %>

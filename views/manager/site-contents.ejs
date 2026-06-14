@@ -1,0 +1,48 @@
+<%- include('../partials/head', { title: site.name }) %>
+
+<div class="page-head">
+  <h1>📍 <%= site.name %></h1>
+  <a class="btn btn-ghost" href="/manager/sites">← Sites</a>
+</div>
+<% if (site.address) { %><p class="muted"><%= site.address %></p><% } %>
+
+<h2>Tools here <span class="muted">(<%= tools.length %>)</span></h2>
+<% if (tools.length === 0) { %>
+  <div class="card"><p class="muted">No tools are signed out to this site right now.</p></div>
+<% } else { %>
+  <ul class="tool-list">
+    <% tools.forEach(function(t) { %>
+      <li>
+        <a class="tool-list__item" href="/t/<%= t.short_id %>">
+          <% if (t.photo) { %><img class="thumb-sq" src="/uploads/<%= t.photo %>" alt="">
+          <% } else { %><span class="thumb-sq thumb-sq--ph"><%= h.CATEGORY_ICONS[t.category] %></span><% } %>
+          <span class="ti">
+            <span class="tool-list__name"><%= t.name %></span>
+            <span class="ti__meta">Out <%= h.durationSince(t.time_out) %> · <code><%= t.short_id %></code></span>
+          </span>
+          <span class="badge badge--<%= t.status %>"><%= h.STATUS_LABELS[t.status] %></span>
+        </a>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>
+
+<h2>Materials here <span class="muted">(<%= materials.length %>)</span></h2>
+<% if (materials.length === 0) { %>
+  <div class="card"><p class="muted">No materials recorded at this site.</p></div>
+<% } else { %>
+  <table class="table table--oneline">
+    <thead><tr><th>Material</th><th>Type</th><th>Qty</th></tr></thead>
+    <tbody>
+      <% materials.forEach(function(m) { %>
+        <tr>
+          <td><strong><%= m.name %></strong></td>
+          <td><span class="badge badge--type"><%= m.type %></span></td>
+          <td class="nowrap"><strong><%= Number(m.quantity).toLocaleString() %></strong> <%= m.unit || '' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+
+<%- include('../partials/foot') %>

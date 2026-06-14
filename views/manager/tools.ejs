@@ -1,0 +1,221 @@
+<%- include('../partials/head', { title: 'Tools' }) %>
+
+<div class="page-head">
+  <h1>Tools</h1>
+  <% if (manager.role === 'manager') { %>
+  <div class="form-actions">
+    <button type="button" id="selectToggle" class="btn btn-ghost">Select</button>
+    <button type="button" id="moveToggle" class="btn btn-ghost">Move Multiple</button>
+    <a class="btn btn-ghost" href="/manager/categories">Categories</a>
+    <a class="btn btn-ghost" href="/manager/tools/import">⬆ Import CSV</a>
+    <a class="btn" href="/manager/tools/new">+ Add tool</a>
+  </div>
+  <% } %>
+</div>
+
+<!-- Search + filter -->
+<form class="form filter-bar" method="get" action="/manager/tools">
+  <label class="grow">Search
+    <input type="search" name="q" value="<%= q %>" placeholder="name, serial #, or code…">
+  </label>
+  <label>Category
+    <select name="category" onchange="this.form.submit()">
+      <option value="">All</option>
+      <% categories.forEach(function(c) { %>
+        <option value="<%= c %>" <%= c === category ? 'selected' : '' %>><%= h.CATEGORY_LABELS[c] %></option>
+      <% }) %>
+    </select>
+  </label>
+  <label>Status
+    <select name="status" onchange="this.form.submit()">
+      <option value="">All</option>
+      <% statuses.forEach(function(s) { %>
+        <option value="<%= s %>" <%= s === status ? 'selected' : '' %>><%= h.STATUS_LABELS[s] %></option>
+      <% }) %>
+    </select>
+  </label>
+  <div class="filter-bar__btns">
+    <button type="submit" class="btn btn-sm">Search</button>
+    <% if (q || category || status) { %><a class="btn btn-ghost btn-sm" href="/manager/tools">Clear</a><% } %>
+  </div>
+</form>
+
+<% if (tools.length === 0) { %>
+  <div class="card empty-state">
+    <div class="empty-state__icon">🔧</div>
+    <% if (q || category || status) { %>
+      <p>No tools match your search.</p>
+      <a class="btn btn-ghost" href="/manager/tools">Clear filters</a>
+    <% } else { %>
+      <p>No tools yet<% if (manager.role === 'manager') { %>. Add your first one, or import a list.<% } else { %>.<% } %></p>
+      <% if (manager.role === 'manager') { %><a class="btn" href="/manager/tools/new">+ Add tool</a><% } %>
+    <% } %>
+  </div>
+<% } else { %>
+  <p class="muted small" id="toolsHint"><%= tools.length %> tool<%= tools.length === 1 ? '' : 's' %>. Tap a tool to manage it.</p>
+  <%
+    var qs = [];
+    if (q) qs.push('q=' + encodeURIComponent(q));
+    if (category) qs.push('category=' + encodeURIComponent(category));
+    if (status) qs.push('status=' + encodeURIComponent(status));
+    var returnTo = '/manager/tools' + (qs.length ? '?' + qs.join('&') : '');
+  %>
+  <form id="moveForm" method="post" action="/manager/tools/move">
+    <input type="hidden" name="return_to" value="<%= returnTo %>">
+    <ul class="tool-list" id="toolList">
+      <% tools.forEach(function(t) { %>
+        <% var loc = t.status === 'signed_out' ? (t.out_site || 'Out') : (t.status === 'available' ? homeLocation : h.STATUS_LABELS[t.status]); %>
+        <li class="tool-row">
+          <% if (manager.role === 'manager') { %>
+          <input type="checkbox" class="tool-check" value="<%= t.id %>" aria-label="Select <%= t.name %>">
+          <% if (t.status === 'available' || t.status === 'signed_out') { %>
+            <input type="checkbox" class="move-check" name="tool_ids" value="<%= t.id %>" aria-label="Select <%= t.name %> to move">
+          <% } else { %>
+            <span class="move-check move-check--spacer" aria-hidden="true"></span>
+          <% } %>
+          <% } %>
+          <a class="tool-list__item" href="/manager/tools/<%= t.id %>/edit">
+            <% if (t.photo) { %>
+              <img class="thumb-sq" src="/uploads/<%= t.photo %>" alt="">
+            <% } else { %>
+              <span class="thumb-sq thumb-sq--ph"><%= h.CATEGORY_ICONS[t.category] %></span>
+            <% } %>
+            <span class="ti">
+              <span class="tool-list__name"><%= t.name %></span>
+              <span class="ti__meta"><%= h.CATEGORY_LABELS[t.category] %> · 📍 <%= loc %> · <code><%= t.short_id %></code></span>
+            </span>
+            <span class="badge badge--<%= t.status %>"><%= h.STATUS_LABELS[t.status] %></span>
+          </a>
+          <button type="button" class="expand-btn" data-id="<%= t.id %>" aria-label="Show history for <%= t.name %>" aria-expanded="false">▾</button>
+        </li>
+        <li class="history-panel" id="hist-<%= t.id %>" hidden></li>
+      <% }) %>
+    </ul>
+
+    <% if (manager.role === 'manager') { %>
+    <!-- Appears in Select mode: print labels for the checked tools at once -->
+    <div class="select-bar" id="selectBar" hidden>
+      <span id="selectCount">0 selected</span>
+      <a class="btn" id="printSelected" href="/manager/labels">🏷️ Print labels</a>
+    </div>
+
+    <!-- Appears in Move Multiple mode: re-assign signed-out tools to another site -->
+    <div class="select-bar" id="moveBar" hidden>
+      <span id="moveCount">0 selected</span>
+      <select name="destination_site_id" required>
+        <option value="">Move to…</option>
+        <% sites.forEach(function(s) { %><option value="<%= s.id %>"><%= s.name %></option><% }) %>
+      </select>
+      <button type="submit" class="btn">Move selected</button>
+    </div>
+    <% } %>
+  </form>
+
+  <script>
+    (function () {
+      var list = document.getElementById('toolList');
+
+      // Expand/collapse a tool's recent history.
+      list.addEventListener('click', function (e) {
+        var btn = e.target.closest('.expand-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var id = btn.dataset.id;
+        var panel = document.getElementById('hist-' + id);
+        var opening = panel.hidden;
+        panel.hidden = !opening;
+        btn.classList.toggle('expand-btn--open', opening);
+        btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        if (opening && !panel.dataset.loaded) {
+          panel.innerHTML = '<div class="muted small frag-pad">Loading…</div>';
+          fetch('/manager/tools/' + id + '/history-fragment')
+            .then(function (r) { return r.text(); })
+            .then(function (html) { panel.innerHTML = html; panel.dataset.loaded = '1'; })
+            .catch(function () { panel.innerHTML = '<div class="muted small frag-pad">Could not load history.</div>'; });
+        }
+      });
+
+      <% if (manager.role === 'manager') { %>
+      var toggle = document.getElementById('selectToggle');
+      var bar = document.getElementById('selectBar');
+      var countEl = document.getElementById('selectCount');
+      var printLink = document.getElementById('printSelected');
+      var hint = document.getElementById('toolsHint');
+      var selecting = false;
+
+      var moveToggle = document.getElementById('moveToggle');
+      var moveBar = document.getElementById('moveBar');
+      var moveCountEl = document.getElementById('moveCount');
+      var moving = false;
+
+      function checked() { return Array.prototype.slice.call(list.querySelectorAll('.tool-check:checked')); }
+      function update() {
+        var ids = checked().map(function (c) { return c.value; });
+        countEl.textContent = ids.length + ' selected';
+        printLink.href = '/manager/labels?ids=' + ids.join(',');
+        printLink.classList.toggle('btn-disabled', ids.length === 0);
+      }
+      function setMode(on) {
+        selecting = on;
+        if (on) setMoveMode(false);
+        list.classList.toggle('selecting', on);
+        bar.hidden = !on;
+        toggle.textContent = on ? 'Done' : 'Select';
+        toggle.classList.toggle('btn', on);
+        toggle.classList.toggle('btn-ghost', !on);
+        hint.textContent = on ? 'Tap tools to select, then print their labels.' : '<%= tools.length %> tools. Tap a tool to manage it.';
+        if (!on) { checked().forEach(function (c) { c.checked = false; }); }
+        update();
+      }
+      toggle.addEventListener('click', function () { setMode(!selecting); });
+
+      function movedChecked() { return Array.prototype.slice.call(list.querySelectorAll('.move-check:checked')); }
+      function updateMove() {
+        var n = movedChecked().length;
+        moveCountEl.textContent = n + ' selected';
+        moveBar.hidden = !moving || n === 0;
+      }
+      function setMoveMode(on) {
+        moving = on;
+        if (on) setMode(false);
+        list.classList.toggle('moving', on);
+        moveToggle.textContent = on ? 'Done' : 'Move Multiple';
+        moveToggle.classList.toggle('btn', on);
+        moveToggle.classList.toggle('btn-ghost', !on);
+        hint.textContent = on ? 'Tap tools to select, then choose where to move them.' : '<%= tools.length %> tools. Tap a tool to manage it.';
+        if (!on) { movedChecked().forEach(function (c) { c.checked = false; }); }
+        updateMove();
+      }
+      moveToggle.addEventListener('click', function () { setMoveMode(!moving); });
+
+      // In select mode, tapping a row toggles its checkbox instead of opening it.
+      list.addEventListener('click', function (e) {
+        if (!selecting) return;
+        var item = e.target.closest('.tool-list__item');
+        if (!item) return;
+        e.preventDefault();
+        var cb = item.parentNode.querySelector('.tool-check');
+        cb.checked = !cb.checked;
+        update();
+      });
+
+      // In move mode, tapping a row toggles its move checkbox (signed-out tools only).
+      list.addEventListener('click', function (e) {
+        if (!moving) return;
+        var item = e.target.closest('.tool-list__item');
+        if (!item) return;
+        e.preventDefault();
+        var cb = item.parentNode.querySelector('.move-check');
+        if (!cb || cb.classList.contains('move-check--spacer')) return;
+        cb.checked = !cb.checked;
+        updateMove();
+      });
+
+      list.addEventListener('change', function () { update(); updateMove(); });
+      <% } %>
+    })();
+  </script>
+<% } %>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,39 @@
+<%
+  const isEdit = site && site.id;
+  const action = isEdit ? `/manager/sites/${site.id}` : '/manager/sites';
+  const name = site && site.name ? site.name : '';
+  const address = site && site.address ? site.address : '';
+  const active = site ? (String(site.active) !== '0') : true;
+%>
+<%- include('../partials/head', { title: isEdit ? 'Edit site' : 'Add site' }) %>
+
+<h1><%= isEdit ? 'Edit site' : 'Add site' %></h1>
+
+<% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+<form method="post" action="<%= action %>" enctype="multipart/form-data" class="form card">
+  <label>Site name <span class="req">*</span>
+    <input type="text" name="name" value="<%= name %>" required autofocus>
+  </label>
+  <label>Address
+    <input type="text" name="address" value="<%= address %>">
+  </label>
+  <label>Photo (optional)
+    <input type="file" name="photo" accept="image/*">
+    <% if (isEdit && site.photo) { %>
+      <span class="muted">Current: <img class="thumb" src="/uploads/<%= site.photo %>" alt=""> (choosing a new file replaces it)</span>
+    <% } %>
+  </label>
+  <label>Status
+    <select name="active">
+      <option value="1" <%= active ? 'selected' : '' %>>Active</option>
+      <option value="0" <%= !active ? 'selected' : '' %>>Inactive</option>
+    </select>
+  </label>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-big"><%= isEdit ? 'Save changes' : 'Add site' %></button>
+    <a class="btn btn-ghost" href="/manager/sites">Cancel</a>
+  </div>
+</form>
+
+<%- include('../partials/foot') %>

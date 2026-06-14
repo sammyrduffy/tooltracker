@@ -1,0 +1,125 @@
+<%- include('../partials/head', { title: 'Beacons' }) %>
+
+<div class="page-head">
+  <h1>Beacons</h1>
+</div>
+
+<p class="muted">
+  Every BLE tag heard by a scanner shows up here. Pair a beacon to a tool so its
+  live signal can help locate that tool. No hardware yet? Run
+  <code>npm run ble:mock</code> to generate sample sightings.
+</p>
+
+<!-- ===================== TOOL LOCATIONS ===================== -->
+<h2>Tool locations</h2>
+<% if (locations.length === 0) { %>
+  <div class="card card--center"><p class="muted">No paired beacons yet. Pair one below to see it here.</p></div>
+<% } else { %>
+  <ul class="tool-list">
+    <% locations.forEach(function(b) { %>
+      <li class="tool-list__item">
+        <div class="ti">
+          <span class="tool-list__name"><%= b.tool_name %></span>
+          <span class="ti__meta">
+            <%= b.site_name || b.scanner_name || b.scanner_key || '—' %>
+            <% if (b.last_distance_m != null) { %> · <%= b.last_distance_m.toFixed(1) %> m<% } %>
+            · <%= h.durationSince(b.last_seen) %> ago
+          </span>
+        </div>
+        <span class="badge badge--<%= b.last_zone || 'unknown' %>"><%= b.last_zone || 'unknown' %></span>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>
+
+<!-- ===================== SCANNERS ===================== -->
+<h2>Scanners</h2>
+<% if (scanners.length === 0) { %>
+  <div class="card card--center"><p class="muted">No scanners have reported in yet.</p></div>
+<% } else { %>
+  <table class="table table--oneline">
+    <thead>
+      <tr>
+        <th>Scanner</th>
+        <th>Name</th>
+        <th>Site</th>
+        <th>Last seen</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% scanners.forEach(function(sc) { %>
+        <tr>
+          <td><%= sc.scanner_key %></td>
+          <td colspan="3">
+            <form method="post" action="/manager/scanners/<%= sc.id %>/site" class="form-inline">
+              <input type="text" name="name" placeholder="Name (optional)" value="<%= sc.name || '' %>">
+              <select name="site_id">
+                <option value="">— No site —</option>
+                <% sites.forEach(function(s) { %>
+                  <option value="<%= s.id %>" <%= sc.site_id === s.id ? 'selected' : '' %>><%= s.name %></option>
+                <% }) %>
+              </select>
+              <span class="muted small"><%= sc.last_seen ? h.durationSince(sc.last_seen) + ' ago' : 'never' %></span>
+              <button type="submit" class="btn btn-ghost btn-sm">Save</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+
+<!-- ===================== ALL SIGHTINGS / PAIRING ===================== -->
+<h2>All beacon sightings</h2>
+<% if (beacons.length === 0) { %>
+  <div class="card empty-state">
+    <div class="empty-state__icon">📡</div>
+    <p>No beacon sightings yet. Once a gateway or scanner posts to the API, beacons will appear here.</p>
+  </div>
+<% } else { %>
+  <table class="table table--oneline">
+    <thead>
+      <tr>
+        <th>Beacon</th>
+        <th>Signal</th>
+        <th>Distance</th>
+        <th>Zone</th>
+        <th>Heard by</th>
+        <th>Last seen</th>
+        <th>Paired tool</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% beacons.forEach(function(b) { %>
+        <tr>
+          <td>
+            <strong><%= b.beacon_label || b.beacon_key %></strong>
+            <% if (b.beacon_label) { %><br><span class="muted small"><%= b.beacon_key %></span><% } %>
+          </td>
+          <td class="nowrap"><%= b.last_rssi %> dBm</td>
+          <td class="nowrap"><%= b.last_distance_m != null ? b.last_distance_m.toFixed(1) + ' m' : '—' %></td>
+          <td><span class="badge badge--<%= b.last_zone || 'unknown' %>"><%= b.last_zone || 'unknown' %></span></td>
+          <td><%= b.scanner_name || b.scanner_key || '—' %><% if (b.site_name) { %><br><span class="muted small"><%= b.site_name %></span><% } %></td>
+          <td class="nowrap"><%= h.durationSince(b.last_seen) %> ago</td>
+          <td colspan="2">
+            <form method="post" action="/manager/beacons/<%= encodeURIComponent(b.beacon_key) %>/pair" class="form-inline">
+              <select name="tool_id">
+                <option value="">— Not paired —</option>
+                <% tools.forEach(function(t) { %>
+                  <option value="<%= t.id %>" <%= b.tool_id === t.id ? 'selected' : '' %>><%= t.name %></option>
+                <% }) %>
+              </select>
+              <input type="text" name="label" placeholder="Label (optional)" value="<%= b.beacon_label || '' %>">
+              <button type="submit" class="btn btn-ghost btn-sm">Save</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <p class="muted small"><%= beacons.length %> beacon<%= beacons.length === 1 ? '' : 's' %> seen.</p>
+<% } %>
+
+<%- include('../partials/foot') %>

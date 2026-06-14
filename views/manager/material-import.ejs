@@ -1,0 +1,57 @@
+<%- include('../partials/head', { title: 'Import materials' }) %>
+
+<div class="page-head">
+  <h1>Import materials from CSV</h1>
+  <a class="btn btn-ghost" href="/manager/materials">← Materials</a>
+</div>
+
+<% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+<% if (result) { %>
+  <div class="card">
+    <h2>Import complete</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat__num"><%= result.added %></div><div class="stat__label">Added</div></div>
+      <div class="stat"><div class="stat__num"><%= result.merged %></div><div class="stat__label">Merged (qty added)</div></div>
+      <div class="stat"><div class="stat__num"><%= result.skipped %></div><div class="stat__label">Skipped</div></div>
+      <div class="stat"><div class="stat__num"><%= result.total %></div><div class="stat__label">Rows read</div></div>
+    </div>
+    <% if (result.errors.length) { %>
+      <h3>Skipped rows</h3>
+      <ul class="rank">
+        <% result.errors.slice(0, 25).forEach(function(e) { %><li><span><%= e %></span></li><% }) %>
+      </ul>
+      <% if (result.errors.length > 25) { %><p class="muted small">…and <%= result.errors.length - 25 %> more.</p><% } %>
+    <% } %>
+    <div class="form-actions">
+      <a class="btn" href="/manager/materials">View materials</a>
+      <a class="btn btn-ghost" href="/manager/materials/import">Import another file</a>
+    </div>
+  </div>
+<% } else { %>
+  <form class="card form" method="post" action="/manager/materials/import" enctype="multipart/form-data">
+    <label>CSV file
+      <input type="file" name="file" accept=".csv,text/csv" required>
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-big">Upload &amp; import</button>
+    </div>
+  </form>
+
+  <div class="card">
+    <h3>How it works</h3>
+    <ul class="info-list">
+      <li>The first row must be a <strong>header</strong> naming the columns. Recognised columns:
+        <code>name</code>, <code>type</code>, <code>quantity</code>, <code>unit</code>, <code>location</code>, <code>notes</code>.</li>
+      <li><strong>name</strong> is required; everything else is optional. Order doesn't matter, and
+        <code>qty</code>/<code>site</code> also work as column names.</li>
+      <li><strong>type</strong> should be one of your categories (Framing, Electrical, …). Anything
+        unrecognised becomes <em>Miscellaneous</em>.</li>
+      <li>Just like adding by hand: if a material with the <strong>same name at the same location</strong>
+        already exists, its <strong>quantity is added</strong> instead of creating a duplicate.</li>
+    </ul>
+    <p><a class="btn btn-ghost" href="/manager/materials/template.csv">⬇ Download a template CSV</a></p>
+  </div>
+<% } %>
+
+<%- include('../partials/foot') %>

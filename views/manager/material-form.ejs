@@ -1,0 +1,57 @@
+<%
+  const isEdit = material && material.id;
+  const action = isEdit ? `/manager/materials/${material.id}` : '/manager/materials';
+  const v = (k) => (material && material[k] != null ? material[k] : '');
+  const curType = (material && material.type) ? material.type : 'Miscellaneous';
+%>
+<%- include('../partials/head', { title: isEdit ? 'Edit material' : 'Add material' }) %>
+
+<h1><%= isEdit ? 'Edit material' : 'Add material' %></h1>
+
+<% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+<form method="post" action="<%= action %>" class="form card">
+  <label>Material name <span class="req">*</span>
+    <input type="text" name="name" value="<%= v('name') %>" required autofocus
+           list="material-names" autocomplete="off" placeholder="e.g. 2×4×8 Stud">
+    <datalist id="material-names">
+      <% (typeof names !== 'undefined' ? names : []).forEach(function(n) { %><option value="<%= n %>"></option><% }) %>
+    </datalist>
+    <span class="muted small">Tip: same name + same location adds to the existing quantity (spelling, spacing &amp; capitals don't matter).</span>
+  </label>
+
+  <label>Type
+    <select name="type">
+      <% types.forEach(function(t) { %>
+        <option value="<%= t %>" <%= curType === t ? 'selected' : '' %>><%= t %></option>
+      <% }) %>
+    </select>
+  </label>
+
+  <div class="form-row">
+    <label>Quantity
+      <input type="number" name="quantity" step="any" min="0" value="<%= v('quantity') %>" placeholder="0">
+    </label>
+    <label>Unit
+      <input type="text" name="unit" value="<%= v('unit') %>" placeholder="ea, sheets, ft, boxes, bags…">
+    </label>
+  </div>
+
+  <label>Location
+    <input type="text" name="location" value="<%= v('location') %>" list="location-list" placeholder="Where is it?">
+    <datalist id="location-list">
+      <% locations.forEach(function(loc) { %><option value="<%= loc %>"></option><% }) %>
+    </datalist>
+  </label>
+
+  <label>Notes
+    <textarea name="notes" rows="2"><%= v('notes') %></textarea>
+  </label>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-big"><%= isEdit ? 'Save changes' : 'Add material' %></button>
+    <a class="btn btn-ghost" href="/manager/materials">Cancel</a>
+  </div>
+</form>
+
+<%- include('../partials/foot') %>

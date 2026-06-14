@@ -1,0 +1,68 @@
+<%- include('../partials/head', { title: 'People' }) %>
+
+<div class="page-head">
+  <h1>People &amp; permissions</h1>
+  <a class="btn" href="/manager/employees/new">+ Add person</a>
+</div>
+
+<div class="card perm-note">
+  <div><span class="role-pill role-pill--employee">Employee</span> <span class="muted">— can scan tools and sign them in/out with their PIN. No login to this admin area.</span></div>
+  <div><span class="role-pill role-pill--field_user">Field user</span> <span class="muted">— logs in to this app. Can view tools (no editing), has full access to materials, and can view (but not edit) sites.</span></div>
+  <div><span class="role-pill role-pill--manager">Manager</span> <span class="muted">— admin: logs in with their PIN and can add, edit, move, and delete tools, materials, people, and sites.</span></div>
+</div>
+
+<!-- Search + filter -->
+<form class="form filter-bar" method="get" action="/manager/employees">
+  <label class="grow">Search
+    <input type="search" name="q" value="<%= q %>" placeholder="name…">
+  </label>
+  <label>Role
+    <select name="role" onchange="this.form.submit()">
+      <option value="">All</option>
+      <option value="manager" <%= role === 'manager' ? 'selected' : '' %>>Manager</option>
+      <option value="field_user" <%= role === 'field_user' ? 'selected' : '' %>>Field user</option>
+      <option value="employee" <%= role === 'employee' ? 'selected' : '' %>>Employee</option>
+    </select>
+  </label>
+  <div class="filter-bar__btns">
+    <button type="submit" class="btn btn-sm">Search</button>
+    <% if (q || role) { %><a class="btn btn-ghost btn-sm" href="/manager/employees">Clear</a><% } %>
+  </div>
+</form>
+
+<% if (employees.length === 0) { %>
+  <div class="card empty-state">
+    <div class="empty-state__icon">👥</div>
+    <% if (q || role) { %>
+      <p>No people match your search.</p>
+      <a class="btn btn-ghost" href="/manager/employees">Clear filters</a>
+    <% } else { %>
+      <p>No people yet. Add employees and managers here.</p>
+      <a class="btn" href="/manager/employees/new">+ Add person</a>
+    <% } %>
+  </div>
+<% } else { %>
+  <table class="table table--responsive">
+    <thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <% employees.forEach(function(e) { %>
+        <tr>
+          <td data-label="Name"><%= e.name %></td>
+          <% const roleLabels = { manager: 'Manager', field_user: 'Field user', employee: 'Employee' }; %>
+          <td data-label="Role"><span class="role-pill role-pill--<%= e.role %>"><%= roleLabels[e.role] || 'Employee' %></span></td>
+          <td data-label="Status"><%= e.active ? 'Active' : 'Inactive' %></td>
+          <td class="row-actions">
+            <a class="btn btn-sm" href="/manager/employees/<%= e.id %>/edit">Edit</a>
+            <form method="post" action="/manager/employees/<%= e.id %>/delete" class="inline"
+                  onsubmit="return confirm('Delete <%= e.name %>?');">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <p class="muted small">Tip: a 4-digit PIN is required for each person. To retire someone who has history, set them to <em>Inactive</em> instead of deleting.</p>
+<% } %>
+
+<%- include('../partials/foot') %>

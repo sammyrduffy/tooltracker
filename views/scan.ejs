@@ -1,0 +1,69 @@
+<%- include('partials/head', { title: 'Scan a tool' }) %>
+
+<h1>Scan a tool</h1>
+<p class="muted" id="scanStatus">Point your camera at a tool's QR sticker.</p>
+
+<div class="scanner">
+  <video id="scanVideo" playsinline muted></video>
+  <div class="scanner__frame"></div>
+</div>
+
+<div id="scanFallback" class="card" hidden>
+  <p class="muted">Couldn't open the camera here. You can still open your phone's camera app and
+    point it at the sticker, or find the tool in the list.</p>
+  <a class="btn btn-big" href="/">Browse tools</a>
+</div>
+
+<p style="margin-top:1rem"><a class="btn btn-ghost btn-big" href="/">Cancel</a></p>
+
+<canvas id="scanCanvas" hidden></canvas>
+<script src="/jsqr.js"></script>
+<script>
+(function () {
+  var video = document.getElementById('scanVideo');
+  var canvas = document.getElementById('scanCanvas');
+  var ctx = canvas.getContext('2d', { willReadFrequently: true });
+  var statusEl = document.getElementById('scanStatus');
+  var fallback = document.getElementById('scanFallback');
+  var stream = null, done = false;
+
+  // Pull a tool code out of whatever the QR contains (full URL, path, or bare code).
+  function toCode(text) {
+    var m = String(text).match(/\/t\/([A-Za-z0-9]+)/);
+    if (m) return m[1];
+    m = String(text).match(/^[A-Z0-9]{4,10}$/);
+    return m ? m[0] : null;
+  }
+  function stop() { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); }
+  function showFallback() {
+    statusEl.textContent = '';
+    fallback.hidden = false;
+    var box = document.querySelector('.scanner');
+    if (box) box.hidden = true;
+  }
+
+  function tick() {
+    if (done) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var result = (typeof jsQR === 'function') ? jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' }) : null;
+      if (result && result.data) {
+        var code = toCode(result.data);
+        if (code) { done = true; stop(); statusEl.textContent = 'Found it — opening…'; window.location.href = '/t/' + code; return; }
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showFallback(); return; }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(function (s) { stream = s; video.srcObject = s; video.play(); requestAnimationFrame(tick); })
+    .catch(showFallback);
+
+  window.addEventListener('pagehide', stop);
+})();
+</script>
+
+<%- include('partials/foot') %>

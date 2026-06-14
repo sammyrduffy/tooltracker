@@ -1,0 +1,32 @@
+<%- include('../partials/head', { title: 'Manager login' }) %>
+
+<div class="card card--center">
+  <img class="login-logo login-logo--tool" src="/logo-tool.png" alt="Tool Tracker">
+  <h1>Sign in</h1>
+
+  <% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+  <% if (managers.length === 0) { %>
+    <p class="muted">No manager accounts exist yet. Restart the app to create the starter manager.</p>
+  <% } else { %>
+    <form method="post" action="/manager/login" class="form">
+      <label>
+        Your name
+        <select name="employee_id" required>
+          <option value="" disabled selected>Choose your name…</option>
+          <% managers.forEach(function(m) { %>
+            <option value="<%= m.id %>"><%= m.name %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        4-digit PIN
+        <input type="password" name="pin" inputmode="numeric" pattern="[0-9]*"
+               maxlength="4" autocomplete="off" required>
+      </label>
+      <button type="submit" class="btn btn-big">Log in</button>
+    </form>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

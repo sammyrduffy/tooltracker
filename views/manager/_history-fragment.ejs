@@ -1,0 +1,56 @@
+<div class="ok-card frag-pad">
+  <div class="ok-card__main">
+    <% if (tool.photo) { %>
+      <img class="thumb-sq thumb-sq--lg" src="/uploads/<%= tool.photo %>" alt="">
+    <% } else { %>
+      <span class="thumb-sq thumb-sq--lg thumb-sq--ph"><%= h.CATEGORY_ICONS[tool.category] %></span>
+    <% } %>
+    <div class="ok-card__info">
+      <strong class="ok-card__name"><%= tool.name %></strong>
+      <span class="muted small">
+        <%= h.CATEGORY_LABELS[tool.category] %>
+        <% if (tool.serial_number) { %> · Serial <%= tool.serial_number %><% } %>
+        · <code><%= tool.short_id %></code>
+      </span>
+      <span class="muted small">📍 Currently at <strong><%= currentLocation %></strong></span>
+    </div>
+  </div>
+
+  <div class="ok-card__status">
+    <span class="badge badge--<%= tool.status %> badge--lg"><%= h.STATUS_LABELS[tool.status] %></span>
+    <% if (tool.status !== 'signed_out') { %>
+      <div class="ok-card__status-actions">
+        <% ['available','in_repair','missing'].forEach(function(s) { if (s === tool.status) return; %>
+          <form method="post" action="/manager/tools/<%= tool.id %>/status" class="inline">
+            <input type="hidden" name="status" value="<%= s %>">
+            <input type="hidden" name="return_to" value="/manager/tools">
+            <button type="submit" class="btn btn-sm btn-ghost">Mark <%= h.STATUS_LABELS[s] %></button>
+          </form>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<h3 class="frag-pad frag-pad--tight">Tool history</h3>
+<% if (history.length === 0) { %>
+  <p class="muted small frag-pad frag-pad--tight">Never signed out yet.</p>
+<% } else { %>
+  <table class="table table--compact">
+    <thead><tr><th>Employee</th><th>Site</th><th>Out</th><th>In</th><th>Duration</th></tr></thead>
+    <tbody>
+      <% history.slice(0, 8).forEach(function(c) { %>
+        <tr>
+          <td><%= c.employee_name %></td>
+          <td><%= c.site_name || '—' %></td>
+          <td><%= h.formatDateTime(c.time_out) %></td>
+          <td><% if (c.time_in) { %><%= h.formatDateTime(c.time_in) %><% } else { %><span class="badge badge--signed_out">Still out</span><% } %></td>
+          <td><%= h.durationSince(c.time_out, c.time_in) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <% if (history.length > 8) { %>
+    <p class="muted small frag-pad frag-pad--tight"><a href="/manager/tools/<%= tool.id %>/history">View full history (<%= history.length %>)</a></p>
+  <% } %>
+<% } %>

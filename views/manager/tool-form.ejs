@@ -1,0 +1,112 @@
+<%
+  const isEdit = tool && tool.id;
+  const action = isEdit ? `/manager/tools/${tool.id}` : '/manager/tools';
+  const v = (k) => (tool && tool[k] != null ? tool[k] : '');
+  const status = (tool && tool.status) ? tool.status : 'available';
+  const category = (tool && tool.category) ? tool.category : 'other';
+  const canEdit = manager.role === 'manager';
+  const ro = canEdit ? '' : 'disabled';
+%>
+<%- include('../partials/head', { title: isEdit ? (canEdit ? 'Edit tool' : 'Tool details') : 'Add tool' }) %>
+
+<h1><%= isEdit ? (canEdit ? 'Edit tool' : 'Tool details') : 'Add tool' %></h1>
+
+<% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+<form method="post" action="<%= action %>" enctype="multipart/form-data" class="form card">
+  <label>Name <span class="req">*</span>
+    <input type="text" name="name" value="<%= v('name') %>" required autofocus <%= ro %>>
+  </label>
+
+  <label>Description
+    <textarea name="description" rows="2" <%= ro %>><%= v('description') %></textarea>
+  </label>
+
+  <label>Category
+    <select name="category" <%= ro %>>
+      <% categories.forEach(function(c) { %>
+        <option value="<%= c %>" <%= category === c ? 'selected' : '' %>><%= h.CATEGORY_LABELS[c] %></option>
+      <% }) %>
+    </select>
+  </label>
+
+  <div class="form-row">
+    <label>Serial number
+      <input type="text" name="serial_number" value="<%= v('serial_number') %>" <%= ro %>>
+    </label>
+    <label>Purchase value ($)
+      <input type="number" name="purchase_value" step="0.01" min="0" value="<%= v('purchase_value') %>" <%= ro %>>
+    </label>
+  </div>
+
+  <label>Condition notes
+    <textarea name="condition_notes" rows="2" <%= ro %>><%= v('condition_notes') %></textarea>
+  </label>
+
+  <% if (canEdit) { %>
+  <label>Photo (optional)
+    <input type="file" name="photo" accept="image/*">
+    <% if (isEdit && tool.photo) { %>
+      <span class="muted">Current: <img class="thumb" src="/uploads/<%= tool.photo %>" alt=""> (choosing a new file replaces it)</span>
+    <% } %>
+  </label>
+  <% } else if (isEdit && tool.photo) { %>
+  <label>Photo
+    <span class="muted"><img class="thumb" src="/uploads/<%= tool.photo %>" alt=""></span>
+  </label>
+  <% } %>
+
+  <div class="form-actions">
+    <% if (canEdit) { %>
+      <button type="submit" class="btn btn-big"><%= isEdit ? 'Save changes' : 'Add tool' %></button>
+      <a class="btn btn-ghost" href="/manager/tools">Cancel</a>
+    <% } else { %>
+      <a class="btn btn-ghost" href="/manager/tools">Back to tools</a>
+    <% } %>
+  </div>
+</form>
+
+<% if (isEdit) { %>
+  <div class="card">
+    <h2>Status</h2>
+    <p>Current: <span class="badge badge--<%= status %> badge--lg"><%= h.STATUS_LABELS[status] %></span></p>
+    <% if (canEdit) { %>
+      <% if (status === 'signed_out') { %>
+        <p class="muted small">This tool is signed out. Marking it below will return it (closing the current checkout).</p>
+      <% } %>
+      <div class="form-actions status-actions">
+        <% ['available','in_repair','missing'].forEach(function(s) { if (s === status) return; %>
+          <form method="post" action="/manager/tools/<%= tool.id %>/status" class="inline">
+            <input type="hidden" name="status" value="<%= s %>">
+            <input type="hidden" name="return_to" value="/manager/tools/<%= tool.id %>/edit">
+            <button type="submit" class="btn btn-ghost">Mark <%= h.STATUS_LABELS[s] %></button>
+          </form>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="card qr-box">
+    <h2>QR code</h2>
+    <p class="muted">This opens the tool's page (code <code><%= tool.short_id %></code>) when scanned.</p>
+    <img class="qr-preview" src="/qr/<%= tool.short_id %>" alt="QR code for <%= tool.name %>">
+    <div class="form-actions">
+      <% if (canEdit) { %><a class="btn" href="/manager/labels?ids=<%= tool.id %>">Print label</a><% } %>
+      <a class="btn btn-ghost" href="/qr/<%= tool.short_id %>?download=1">Download image</a>
+      <a class="btn btn-ghost" href="/manager/tools/<%= tool.id %>/history">History</a>
+    </div>
+  </div>
+
+  <% if (canEdit) { %>
+  <div class="card">
+    <h2>Delete tool</h2>
+    <p class="muted small">Permanently removes this tool and its checkout history. This cannot be undone.</p>
+    <form method="post" action="/manager/tools/<%= tool.id %>/delete"
+          onsubmit="return confirm('Delete &quot;<%= tool.name %>&quot;? This also removes its checkout history and cannot be undone.');">
+      <button type="submit" class="btn btn-danger">Delete this tool</button>
+    </form>
+  </div>
+  <% } %>
+<% } %>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,87 @@
+<%- include('../partials/head', { title: 'Settings' }) %>
+
+<h1>Settings</h1>
+
+<div class="card">
+  <h2>Install Tool Tracker</h2>
+  <p class="muted small">Install Tool Tracker on this device so it opens like a regular app, with its own icon.</p>
+  <button id="installBtn" class="btn" hidden>📲 Add to Home Screen</button>
+  <p id="installHint" class="muted small">
+    <strong>iPhone (Safari):</strong> tap the Share icon <code>⬆️</code>, then <strong>Add to Home Screen</strong>.<br>
+    <strong>Android (Chrome):</strong> tap the menu <code>⋮</code>, then <strong>Add to Home screen</strong> (or <strong>Install app</strong>).
+  </p>
+</div>
+
+<div class="card">
+  <h2>Profile</h2>
+  <form method="post" action="/manager/settings/profile" class="form">
+    <label>Your name
+      <input type="text" name="name" value="<%= manager.name %>" required maxlength="60">
+    </label>
+    <%
+      const roleLabels = { manager: 'Manager', field_user: 'Field user', employee: 'Employee' };
+    %>
+    <p class="muted small">Signed in as <strong><%= roleLabels[manager.role] || 'Employee' %></strong></p>
+    <button type="submit" class="btn">Save</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Account &amp; security</h2>
+  <form method="post" action="/manager/settings/pin" class="form">
+    <label>Current PIN
+      <input type="password" name="current_pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required>
+    </label>
+    <label>New PIN
+      <input type="password" name="new_pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required>
+    </label>
+    <label>Confirm new PIN
+      <input type="password" name="confirm_pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required>
+    </label>
+    <button type="submit" class="btn">Change PIN</button>
+  </form>
+  <form method="post" action="/manager/logout" class="inline" style="margin-top: 1rem;">
+    <button type="submit" class="btn btn-ghost">Log out</button>
+  </form>
+</div>
+
+<% if (manager.role === 'manager') { %>
+<div class="card qr-box">
+  <h2>Invite someone new</h2>
+  <p class="muted small">Share this link or QR code to let someone install the app and create their own sign-in.</p>
+  <img class="qr-preview" src="/welcome/qr.png" alt="QR code linking to the welcome page">
+  <p class="muted small"><%= url %>/welcome</p>
+</div>
+<% } %>
+
+<script>
+  (function () {
+    var btn = document.getElementById('installBtn');
+    var hint = document.getElementById('installHint');
+    var deferredPrompt = null;
+
+    // Already running as an installed app — nothing to do.
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+      hint.hidden = true;
+      return;
+    }
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      btn.hidden = false;
+      hint.hidden = true;
+    });
+
+    btn.addEventListener('click', function () {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.finally(function () {
+        deferredPrompt = null;
+        btn.hidden = true;
+      });
+    });
+  })();
+</script>
+
+<%- include('../partials/foot') %>

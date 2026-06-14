@@ -1,0 +1,98 @@
+<div class="ok-actions frag-pad">
+  <a class="ok-action" href="/manager/sites/<%= site.id %>/contents"><span>📦</span>Contents</a>
+  <a class="ok-action" href="/manager/materials?location=<%= encodeURIComponent(site.name) %>"><span>🧱</span>Materials</a>
+  <a class="ok-action" href="/manager/sites/<%= site.id %>/edit"><span>✏️</span>Edit</a>
+</div>
+
+<div class="site-report__top frag-pad frag-pad--tight">
+  <% if (mapUrl) { %>
+    <div class="site-map">
+      <iframe src="<%= mapUrl %>" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+    </div>
+  <% } else { %>
+    <div class="site-map site-map--empty">
+      <span class="muted small">📍 Add an address to show a map.</span>
+    </div>
+  <% } %>
+
+  <div class="pie-block">
+    <h3 class="frag-pad--tight">Tools out by category</h3>
+    <% if (pieGradient) { %>
+      <div class="pie-wrap">
+        <div class="pie" style="background: <%= pieGradient %>"></div>
+        <ul class="pie-legend">
+          <% Object.keys(categoryCounts).forEach(function (cat) { if (!categoryCounts[cat]) return; %>
+            <li><span class="pie-swatch" style="background: <%= h.CATEGORY_COLORS[cat] %>"></span> <%= h.CATEGORY_ICONS[cat] %> <%= h.CATEGORY_LABELS[cat] %> · <%= categoryCounts[cat] %></li>
+          <% }) %>
+        </ul>
+      </div>
+    <% } else { %>
+      <p class="muted small">No tools currently signed out to this site.</p>
+    <% } %>
+  </div>
+</div>
+
+<div class="stat-grid frag-pad frag-pad--tight">
+  <div class="stat">
+    <div class="stat__num"><%= toolsOut %></div>
+    <div class="stat__label">Tools out</div>
+  </div>
+  <div class="stat">
+    <div class="stat__num"><%= materials.n %></div>
+    <div class="stat__label">Material<%= materials.n === 1 ? '' : 's' %> here</div>
+  </div>
+</div>
+
+<div class="seg-control frag-pad frag-pad--tight" role="tablist">
+  <button type="button" class="seg-btn seg-btn--on" data-target="panel-activity-<%= site.id %>">Tools</button>
+  <button type="button" class="seg-btn" data-target="panel-materials-<%= site.id %>">Materials</button>
+</div>
+
+<div id="panel-activity-<%= site.id %>" class="seg-panel">
+  <h3 class="frag-pad frag-pad--tight">Recent activity</h3>
+  <% if (recent.length === 0) { %>
+    <p class="muted small frag-pad frag-pad--tight">No activity recorded for this site yet.</p>
+  <% } else { %>
+    <table class="table table--compact">
+      <thead><tr><th>Tool</th><th>Employee</th><th>Out</th><th>In</th></tr></thead>
+      <tbody>
+        <% recent.forEach(function(r) { %>
+          <tr>
+            <td><%= r.tool_name %></td>
+            <td><%= r.employee_name %></td>
+            <td><%= h.formatDateTime(r.time_out) %></td>
+            <td><% if (r.time_in) { %><%= h.formatDateTime(r.time_in) %><% } else { %><span class="badge badge--signed_out">Still out</span><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+
+  <h3 class="frag-pad frag-pad--tight">Export history</h3>
+  <form class="form site-export frag-pad frag-pad--tight" method="get" action="/manager/export/site-history.csv">
+    <input type="hidden" name="site_id" value="<%= site.id %>">
+    <label>From <input type="date" name="from"></label>
+    <label>To <input type="date" name="to"></label>
+    <button type="submit" class="btn btn-sm">⬇ Export CSV</button>
+  </form>
+</div>
+
+<div id="panel-materials-<%= site.id %>" class="seg-panel" hidden>
+  <h3 class="frag-pad frag-pad--tight">Materials here</h3>
+  <% if (materialsList.length === 0) { %>
+    <p class="muted small frag-pad frag-pad--tight">No materials at this site.</p>
+  <% } else { %>
+    <table class="table table--compact">
+      <thead><tr><th>Material</th><th>Type</th><th>Qty</th></tr></thead>
+      <tbody>
+        <% materialsList.forEach(function(m) { %>
+          <tr>
+            <td><%= m.name %></td>
+            <td><span class="badge badge--type"><%= m.type %></span></td>
+            <td><%= Number(m.quantity).toLocaleString() %> <%= m.unit || '' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>

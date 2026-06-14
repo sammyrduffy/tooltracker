@@ -1,0 +1,33 @@
+<%
+  const isEdit = category && category.id;
+  const action = isEdit ? `/manager/categories/${category.id}` : '/manager/categories';
+  const label = category && category.label ? category.label : '';
+  const icon = category && category.icon ? category.icon : '🧰';
+  const color = category && category.color ? category.color : '#a1a1aa';
+%>
+<%- include('../partials/head', { title: isEdit ? 'Edit category' : 'Add category' }) %>
+
+<h1><%= isEdit ? 'Edit category' : 'Add category' %></h1>
+
+<% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+<form method="post" action="<%= action %>" class="form card">
+  <label>Category name <span class="req">*</span>
+    <input type="text" name="label" value="<%= label %>" required autofocus>
+  </label>
+  <% if (isEdit) { %>
+    <p class="muted small">Code: <code><%= category.key %></code> (cannot be changed)</p>
+  <% } %>
+  <label>Icon (emoji)
+    <input type="text" name="icon" value="<%= icon %>" maxlength="4">
+  </label>
+  <label>Color
+    <input type="color" name="color" value="<%= color %>">
+  </label>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-big"><%= isEdit ? 'Save changes' : 'Add category' %></button>
+    <a class="btn btn-ghost" href="/manager/categories">Cancel</a>
+  </div>
+</form>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,98 @@
+<%- include('../partials/head', { title: 'Job sites' }) %>
+
+<div class="page-head">
+  <h1>Job sites</h1>
+  <% if (manager.role === 'manager') { %>
+  <div class="form-actions">
+    <a class="btn" href="/manager/sites/new">+ Add site</a>
+  </div>
+  <% } %>
+</div>
+
+<!-- Search + filter -->
+<form class="form filter-bar" method="get" action="/manager/sites">
+  <label class="grow">Search
+    <input type="search" name="q" value="<%= q %>" placeholder="name or address…">
+  </label>
+  <div class="filter-bar__btns">
+    <button type="submit" class="btn btn-sm">Search</button>
+    <% if (q) { %><a class="btn btn-ghost btn-sm" href="/manager/sites">Clear</a><% } %>
+  </div>
+</form>
+
+<% if (sites.length === 0) { %>
+  <div class="card empty-state">
+    <div class="empty-state__icon">📍</div>
+    <% if (q) { %>
+      <p>No job sites match your search.</p>
+      <a class="btn btn-ghost" href="/manager/sites">Clear filters</a>
+    <% } else { %>
+      <p>No job sites yet. Add the places tools get taken to.</p>
+      <% if (manager.role === 'manager') { %><a class="btn" href="/manager/sites/new">+ Add site</a><% } %>
+    <% } %>
+  </div>
+<% } else { %>
+  <table class="table table--responsive" id="siteTable">
+    <thead><tr><th>Name</th><th>Photo</th><th>Address</th><th>Status</th><th></th><th></th></tr></thead>
+    <tbody>
+      <% sites.forEach(function(s) { %>
+        <tr>
+          <td data-label="Name"><a href="/manager/sites/<%= s.id %>/contents"><%= s.name %></a></td>
+          <td class="hide-mobile">
+            <% if (s.photo) { %><img class="thumb-sq" src="/uploads/<%= s.photo %>" alt="">
+            <% } else { %><span class="thumb-sq thumb-sq--ph">📍</span><% } %>
+          </td>
+          <td class="muted" data-label="Address"><%= s.address || '' %></td>
+          <td data-label="Status"><%= s.active ? 'Active' : 'Inactive' %></td>
+          <td class="row-actions">
+            <a class="btn btn-sm btn-ghost" href="/manager/sites/<%= s.id %>/contents">Contents</a>
+            <% if (manager.role === 'manager') { %>
+            <a class="btn btn-sm" href="/manager/sites/<%= s.id %>/edit">Edit</a>
+            <form method="post" action="/manager/sites/<%= s.id %>/delete" class="inline"
+                  onsubmit="return confirm('Delete <%= s.name %>?');">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+            <% } %>
+          </td>
+          <td><button type="button" class="expand-btn" data-id="<%= s.id %>" aria-label="Show report for <%= s.name %>" aria-expanded="false">▾</button></td>
+        </tr>
+        <tr class="report-row" id="report-<%= s.id %>" hidden><td colspan="6"></td></tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <script>
+    (function () {
+      var table = document.getElementById('siteTable');
+      table.addEventListener('click', function (e) {
+        var segBtn = e.target.closest('.seg-btn');
+        if (segBtn) {
+          var root = segBtn.closest('td');
+          root.querySelectorAll('.seg-btn').forEach(function (b) { b.classList.toggle('seg-btn--on', b === segBtn); });
+          root.querySelectorAll('.seg-panel').forEach(function (p) { p.hidden = (p.id !== segBtn.dataset.target); });
+          return;
+        }
+
+        var btn = e.target.closest('.expand-btn');
+        if (!btn) return;
+        e.preventDefault();
+        var id = btn.dataset.id;
+        var row = document.getElementById('report-' + id);
+        var cell = row.querySelector('td');
+        var opening = row.hidden;
+        row.hidden = !opening;
+        btn.classList.toggle('expand-btn--open', opening);
+        btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        if (opening && !row.dataset.loaded) {
+          cell.innerHTML = '<div class="muted small frag-pad">Loading…</div>';
+          fetch('/manager/sites/' + id + '/report-fragment')
+            .then(function (r) { return r.text(); })
+            .then(function (html) { cell.innerHTML = html; row.dataset.loaded = '1'; })
+            .catch(function () { cell.innerHTML = '<div class="muted small frag-pad">Could not load report.</div>'; });
+        }
+      });
+    })();
+  </script>
+<% } %>
+
+<%- include('../partials/foot') %>

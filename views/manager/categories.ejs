@@ -1,0 +1,32 @@
+<%- include('../partials/head', { title: 'Tool categories' }) %>
+
+<div class="page-head">
+  <h1>Tool categories</h1>
+  <div class="form-actions">
+    <a class="btn btn-ghost" href="/manager/tools">Back to tools</a>
+    <a class="btn" href="/manager/categories/new">+ Add category</a>
+  </div>
+</div>
+
+<table class="table">
+  <thead><tr><th></th><th>Name</th><th>Color</th><th>Tools</th><th></th></tr></thead>
+  <tbody>
+    <% categories.forEach(function(c) { %>
+      <tr>
+        <td><%= c.icon %></td>
+        <td><%= c.label %> <span class="muted small">(<%= c.key %>)</span></td>
+        <td><span class="pie-swatch" style="background: <%= c.color %>;"></span></td>
+        <td><%= c.toolCount %></td>
+        <td class="row-actions">
+          <a class="btn btn-sm" href="/manager/categories/<%= c.id %>/edit">Edit</a>
+          <form method="post" action="/manager/categories/<%= c.id %>/delete" class="inline"
+                onsubmit="return confirm('Delete <%= c.label %>?');">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<%- include('../partials/foot') %>

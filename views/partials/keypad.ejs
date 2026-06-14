@@ -1,0 +1,16 @@
+<div class="pin">
+  <div class="pin__dots">
+    <span class="pin__dot"></span>
+    <span class="pin__dot"></span>
+    <span class="pin__dot"></span>
+    <span class="pin__dot"></span>
+  </div>
+  <div class="keypad">
+    <% [1,2,3,4,5,6,7,8,9].forEach(function(n) { %>
+      <button type="button" class="key" data-key="<%= n %>"><%= n %></button>
+    <% }) %>
+    <span class="key key--blank"></span>
+    <button type="button" class="key" data-key="0">0</button>
+    <button type="button" class="key key--back" data-key="back">⌫</button>
+  </div>
+</div>

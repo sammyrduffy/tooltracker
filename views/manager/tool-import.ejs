@@ -1,0 +1,56 @@
+<%- include('../partials/head', { title: 'Import tools' }) %>
+
+<div class="page-head">
+  <h1>Import tools from CSV</h1>
+  <a class="btn btn-ghost" href="/manager/tools">← Tools</a>
+</div>
+
+<% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+<% if (result) { %>
+  <div class="card">
+    <h2>Import complete</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat__num"><%= result.added %></div><div class="stat__label">Added</div></div>
+      <div class="stat"><div class="stat__num"><%= result.skipped %></div><div class="stat__label">Skipped</div></div>
+      <div class="stat"><div class="stat__num"><%= result.total %></div><div class="stat__label">Rows read</div></div>
+    </div>
+    <% if (result.errors.length) { %>
+      <h3>Skipped rows</h3>
+      <ul class="rank">
+        <% result.errors.slice(0, 25).forEach(function(e) { %><li><span><%= e %></span></li><% }) %>
+      </ul>
+      <% if (result.errors.length > 25) { %><p class="muted small">…and <%= result.errors.length - 25 %> more.</p><% } %>
+    <% } %>
+    <div class="form-actions">
+      <a class="btn" href="/manager/tools">View tools</a>
+      <a class="btn btn-ghost" href="/manager/tools/import">Import another file</a>
+    </div>
+  </div>
+<% } else { %>
+  <form class="card form" method="post" action="/manager/tools/import" enctype="multipart/form-data">
+    <label>CSV file
+      <input type="file" name="file" accept=".csv,text/csv" required>
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-big">Upload &amp; import</button>
+    </div>
+  </form>
+
+  <div class="card">
+    <h3>How it works</h3>
+    <ul class="info-list">
+      <li>The first row must be a <strong>header</strong> naming the columns. Recognised columns:
+        <code>name</code>, <code>description</code>, <code>serial_number</code>, <code>category</code>,
+        <code>purchase_value</code>, <code>condition_notes</code>.</li>
+      <li><strong>name</strong> is required; everything else is optional, and the order doesn't matter.</li>
+      <li><strong>category</strong> should be <code>drill</code>, <code>saw</code>, <code>ladder</code>, or
+        <code>other</code> — anything else becomes <em>other</em>.</li>
+      <li>Each tool gets its own unique code and QR automatically, and starts as <strong>Available</strong>.</li>
+      <li>If a row's <strong>serial number</strong> already exists, that row is skipped (no duplicates).</li>
+    </ul>
+    <p><a class="btn btn-ghost" href="/manager/tools/template.csv">⬇ Download a template CSV</a></p>
+  </div>
+<% } %>
+
+<%- include('../partials/foot') %>

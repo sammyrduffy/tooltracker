@@ -1,0 +1,152 @@
+<%- include('../partials/head', { title: 'Print labels' }) %>
+
+<%
+  // Is the address the QR codes point to usable by phones?
+  const looksLocal = /localhost|127\.0\.0\.1/i.test(baseUrl);
+  const currentQuery = `?sheet=${sheetKey}` + (category ? `&category=${category}` : '')
+    + (skip ? `&skip=${skip}` : '') + (idsParam ? `&ids=${idsParam}` : '');
+%>
+
+<!-- Everything in .no-print is hidden when you actually print -->
+<div class="no-print">
+  <div class="page-head">
+    <h1>Print labels</h1>
+    <button type="button" class="btn" onclick="window.print()">🖨️ Print</button>
+  </div>
+
+  <% if (looksLocal) { %>
+    <div class="banner banner--error">
+      These QR codes currently point to <code><%= baseUrl %></code>, which only works on
+      <strong>this computer</strong>. Set the address your crew's phones use (e.g.
+      <code>http://192.168.2.79:3000</code>) in the box below before printing.
+    </div>
+  <% } %>
+
+  <!-- What the QR codes point to -->
+  <form class="card form" method="post" action="/manager/labels/base-url">
+    <input type="hidden" name="return_to" value="/manager/labels<%= currentQuery %>">
+    <label>Web address the QR codes point to
+      <input type="text" name="base_url" value="<%= baseUrl %>" placeholder="http://192.168.2.79:3000">
+    </label>
+    <p class="muted small">Each sticker opens <code><%= baseUrl %>/t/CODE</code>. Use the
+      <code>http://…</code> address phones reach now; change it to your real web address once the app is online.</p>
+    <button type="submit" class="btn btn-ghost">Save address</button>
+  </form>
+
+  <!-- Layout + filtering options -->
+  <form class="card form" method="get" action="/manager/labels">
+    <% if (idsParam) { %><input type="hidden" name="ids" value="<%= idsParam %>"><% } %>
+    <div class="form-row">
+      <label>Label sheet
+        <select name="sheet" onchange="this.form.submit()">
+          <% Object.keys(sheets).forEach(function(k) { %>
+            <option value="<%= k %>" <%= k === sheetKey ? 'selected' : '' %>><%= sheets[k].label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <% if (!idsParam) { %>
+      <label>Only this category
+        <select name="category" onchange="this.form.submit()">
+          <option value="">All categories</option>
+          <% categories.forEach(function(c) { %>
+            <option value="<%= c %>" <%= c === category ? 'selected' : '' %>><%= h.CATEGORY_LABELS[c] %></option>
+          <% }) %>
+        </select>
+      </label>
+      <% } %>
+    </div>
+    <div class="form-row">
+      <label>Skip first labels (to reuse a part-used sheet)
+        <input type="number" name="skip" min="0" value="<%= skip %>">
+      </label>
+      <div class="form-actions" style="align-items:flex-end">
+        <button type="submit" class="btn btn-ghost">Apply</button>
+      </div>
+    </div>
+    <% if (idsParam) { %>
+      <p class="muted small">Printing selected tool(s). <a href="/manager/labels?sheet=<%= sheetKey %>">Print all tools instead →</a></p>
+    <% } %>
+  </form>
+
+  <p class="muted">
+    <strong><%= tools.length %></strong> label<%= tools.length === 1 ? '' : 's' %> across
+    <strong><%= pages.length %></strong> sheet<%= pages.length === 1 ? '' : 's' %>.
+    Tip: do a test print on plain paper first and set your printer to <strong>100% / Actual size</strong> (not "Fit to page").
+  </p>
+
+  <% if (tools.length === 0) { %>
+    <div class="card card--center"><p class="muted">No tools to print. <a href="/manager/tools/new">Add a tool</a> first.</p></div>
+  <% } %>
+</div>
+
+<!-- ===================== THE PRINTABLE SHEETS ===================== -->
+<style>
+  @page { size: letter; margin: <%= spec.marginTop %>in <%= spec.marginSide %>in; }
+
+  /* ---- ON SCREEN: a clean, readable preview — one tidy label per row ---- */
+  @media screen {
+    .sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: .6rem; }
+    .sheet { display: contents; }                 /* ignore paper grouping on screen */
+    .label {
+      display: flex; align-items: center; gap: .85rem;
+      background: var(--card); border: 0.5px solid var(--separator); border-radius: 12px;
+      padding: .7rem .85rem;
+    }
+    .label.empty { display: none; }                /* don't show skipped placeholders on screen */
+    .label__qr { width: 72px; height: 72px; flex: 0 0 auto; background: #fff; padding: 4px; border-radius: 8px; }
+    .label__text { min-width: 0; }
+    .label__name {
+      font-weight: 600; font-size: 1rem; line-height: 1.2;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .label__code { font-family: ui-monospace, monospace; font-size: .82rem; color: var(--muted); margin-top: 2px; }
+  }
+
+  /* ---- ON PAPER: exact Avery sticker geometry ---- */
+  @media print {
+    .sheet {
+      display: grid;
+      grid-template-columns: repeat(<%= spec.cols %>, <%= spec.labelW %>in);
+      grid-auto-rows: <%= spec.labelH %>in;
+      column-gap: <%= spec.colGap %>in;
+      row-gap: <%= spec.rowGap %>in;
+      justify-content: start; align-content: start;
+    }
+    .sheet:not(:last-child) { break-after: page; }
+    .label {
+      box-sizing: border-box;
+      width: <%= spec.labelW %>in; height: <%= spec.labelH %>in;
+      display: flex; align-items: center; gap: 0.09in;
+      padding: 0.06in 0.1in; overflow: hidden;
+    }
+    .label__qr { width: <%= spec.qrSize %>in; height: <%= spec.qrSize %>in; flex: 0 0 auto; }
+    .label__text { flex: 1 1 auto; overflow: hidden; min-width: 0; }
+    .label__name {
+      font-weight: 700; font-size: <%= spec.nameFont %>pt; line-height: 1.12;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    }
+    .label__code { font-family: ui-monospace, monospace; font-size: <%= spec.codeFont %>pt; color: #555; margin-top: 0.05in; }
+  }
+</style>
+
+<div class="sheets">
+  <% pages.forEach(function(page) { %>
+    <div class="sheet">
+      <% page.forEach(function(cell) { %>
+        <% if (!cell) { %>
+          <div class="label empty"></div>
+        <% } else { %>
+          <div class="label">
+            <img class="label__qr" src="/qr/<%= cell.short_id %>" alt="">
+            <div class="label__text">
+              <div class="label__name"><%= cell.name %></div>
+              <div class="label__code"><%= cell.short_id %></div>
+            </div>
+          </div>
+        <% } %>
+      <% }) %>
+    </div>
+  <% }) %>
+</div>
+
+<%- include('../partials/foot') %>

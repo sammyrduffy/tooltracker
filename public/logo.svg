@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 210" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Duffy + Associates">
+  <!-- Recreation of the Duffy + Associates wordmark, drawn at natural proportions
+       (no horizontal stretching). To use the exact original, replace this file
+       with your own logo.svg (keep the filename). -->
+  <g fill="#000" font-family="Arial, 'Helvetica Neue', Helvetica, sans-serif" font-weight="900">
+    <text x="410" y="88" text-anchor="middle" font-size="86">DUFFY</text>
+    <text x="410" y="192" text-anchor="middle" font-size="86">+ ASSOCIATES</text>
+  </g>
+</svg>

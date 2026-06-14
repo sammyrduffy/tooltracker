@@ -1,0 +1,54 @@
+<%- include('partials/head', { title: 'Tools' }) %>
+
+<h1>Find a tool</h1>
+
+<a class="btn btn-huge btn-scan" href="/scan">📷 Scan a tool</a>
+<% if (!manager) { %><a class="btn btn-ghost btn-big" href="/manager/login">Sign in as…</a><% } %>
+<p class="muted center-hint">…or search and tap a tool below.</p>
+
+<% if (tools.length === 0) { %>
+  <div class="card card--center">
+    <p class="muted">No tools yet.</p>
+    <a class="btn" href="/manager/login">Sign in as a manager to add tools</a>
+  </div>
+<% } else { %>
+  <input id="toolSearch" class="search-box" type="search" placeholder="🔍 Search by name or code…" aria-label="Search tools">
+
+  <ul class="tool-list" id="toolList">
+    <% tools.forEach(function(t) { %>
+      <li data-search="<%= (t.name + ' ' + t.short_id).toLowerCase() %>">
+        <a class="tool-list__item" href="/t/<%= t.short_id %>">
+          <% if (t.photo) { %>
+            <img class="thumb-sq" src="/uploads/<%= t.photo %>" alt="">
+          <% } else { %>
+            <span class="thumb-sq thumb-sq--ph"><%= h.CATEGORY_ICONS[t.category] %></span>
+          <% } %>
+          <span class="ti">
+            <span class="tool-list__name"><%= t.name %></span>
+          </span>
+          <span class="badge badge--<%= t.status %>"><%= h.STATUS_LABELS[t.status] %></span>
+        </a>
+      </li>
+    <% }) %>
+  </ul>
+  <p class="muted small" id="noMatch" hidden>No tools match your search.</p>
+
+  <script>
+    (function () {
+      var box = document.getElementById('toolSearch');
+      var items = Array.prototype.slice.call(document.querySelectorAll('#toolList li'));
+      var none = document.getElementById('noMatch');
+      box.addEventListener('input', function () {
+        var q = box.value.trim().toLowerCase(), shown = 0;
+        items.forEach(function (li) {
+          var match = li.getAttribute('data-search').indexOf(q) !== -1;
+          li.hidden = !match;
+          if (match) shown++;
+        });
+        none.hidden = shown !== 0;
+      });
+    })();
+  </script>
+<% } %>
+
+<%- include('partials/foot') %>

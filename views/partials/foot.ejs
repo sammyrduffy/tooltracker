@@ -1,0 +1,37 @@
+  </main>
+
+  <% if (flash) { %>
+    <div class="toast toast--<%= flash.type || 'success' %>" id="toast"><%= flash.text %></div>
+    <script>
+      (function(){ var t=document.getElementById('toast'); if(!t) return;
+        requestAnimationFrame(function(){ t.classList.add('show'); });
+        setTimeout(function(){ t.classList.remove('show'); }, 2800);
+        t.addEventListener('click', function(){ t.classList.remove('show'); });
+      })();
+    </script>
+  <% } %>
+
+  <% if (manager) { %>
+    <!-- Bottom tab bar: the main navigation on phones (hidden on desktop) -->
+    <nav class="tabbar">
+      <a href="/manager" class="<%= currentPath === '/manager' ? 'active' : '' %>"><span class="tabbar__icon">🏠</span>Home</a>
+      <a href="/manager/tools" class="<%= currentPath.startsWith('/manager/tools') ? 'active' : '' %>"><span class="tabbar__icon">🔧</span>Tools</a>
+      <a href="/manager/materials" class="<%= currentPath.startsWith('/manager/materials') ? 'active' : '' %>"><span class="tabbar__icon">🧱</span>Materials</a>
+      <% if (manager.role === 'manager') { %>
+        <a href="/manager/labels" class="<%= currentPath.startsWith('/manager/labels') ? 'active' : '' %>"><span class="tabbar__icon">🏷️</span>Labels</a>
+        <a href="/manager/employees" class="<%= currentPath.startsWith('/manager/employees') ? 'active' : '' %>"><span class="tabbar__icon">👤</span>People</a>
+      <% } else { %>
+        <a href="/manager/sites" class="<%= currentPath.startsWith('/manager/sites') ? 'active' : '' %>"><span class="tabbar__icon">📍</span>Sites</a>
+      <% } %>
+    </nav>
+  <% } %>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js');
+      });
+    }
+  </script>
+</body>
+</html>

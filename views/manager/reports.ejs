@@ -1,0 +1,168 @@
+<%- include('../partials/head', { title: 'Reports' }) %>
+
+<h1>Reports</h1>
+<p class="muted">Export your inventory and history for audits and record-keeping.</p>
+
+<div class="card">
+  <h3>Spreadsheets (CSV)</h3>
+  <p class="muted small">One click — opens in Excel or Google Sheets.</p>
+  <div class="form-actions">
+    <a class="btn" href="/manager/export/tools.csv">⬇ Tools (<%= counts.tools %>)</a>
+    <a class="btn" href="/manager/export/materials.csv">⬇ Materials (<%= counts.materials %>)</a>
+    <a class="btn" href="/manager/export/checkouts.csv">⬇ Checkout history (<%= counts.checkouts %>)</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Printable inventory report (PDF)</h3>
+  <p class="muted small">A clean snapshot of every tool and material. Open it, then use your browser's
+    <strong>Print → Save as PDF</strong>.</p>
+  <a class="btn" href="/manager/reports/inventory" target="_blank" rel="noopener">Open inventory report</a>
+</div>
+
+<div class="card">
+  <div class="page-head">
+    <h3>History preview</h3>
+    <div class="form-actions">
+      <button type="button" class="btn" id="viewHistoryBtn">Site history</button>
+      <button type="button" class="btn btn-ghost" id="viewMaterialsBtn">Materials</button>
+    </div>
+  </div>
+
+  <form class="form filter-bar" method="get" action="/manager/reports">
+    <label>Site
+      <select name="site" onchange="this.form.submit()">
+        <option value="">All sites</option>
+        <% sites.forEach(function(s) { %>
+          <option value="<%= s.id %>" <%= s.id === siteId ? 'selected' : '' %>><%= s.name %></option>
+        <% }) %>
+      </select>
+    </label>
+    <% if (siteId) { %><a class="btn btn-ghost btn-sm" href="/manager/reports">Clear filter</a><% } %>
+  </form>
+
+  <p class="muted small">Click a column heading to sort. Showing the most recent <%= historyLimit %> history entries — use the CSV export above for the full history.</p>
+
+  <div id="historyView">
+    <% if (history.length === 0) { %>
+      <p class="muted">No checkout history<%= siteId ? ' for this site' : '' %> yet.</p>
+    <% } else { %>
+      <table class="table table--responsive" id="historyTable">
+        <thead>
+          <tr>
+            <th class="sortable" data-key="tool">Tool</th>
+            <th class="sortable" data-key="code">Code</th>
+            <th class="sortable" data-key="employee">Employee</th>
+            <th class="sortable" data-key="site">Site</th>
+            <th class="sortable" data-key="out">Out</th>
+            <th class="sortable" data-key="in">In</th>
+            <th class="sortable" data-key="duration">Duration</th>
+            <th class="sortable" data-key="notes">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% history.forEach(function(r) { %>
+            <tr>
+              <td data-label="Tool"><%= r.tool %></td>
+              <td class="hide-mobile"><code><%= r.code %></code></td>
+              <td data-label="Employee"><%= r.employee %></td>
+              <td class="hide-mobile"><%= r.site || '—' %></td>
+              <td data-label="Out" data-sort="<%= r.time_out || '' %>"><%= h.formatDateTime(r.time_out) %></td>
+              <td data-label="In" data-sort="<%= r.time_in || '' %>"><%= r.time_in ? h.formatDateTime(r.time_in) : 'Still out' %></td>
+              <td data-label="Duration" data-sort="<%= h.minutesSince(r.time_out, r.time_in) %>"><%= h.durationSince(r.time_out, r.time_in) %></td>
+              <td class="hide-mobile"><%= r.notes || '' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <div id="materialsView" hidden>
+    <% if (materials.length === 0) { %>
+      <p class="muted">No materials<%= siteId ? ' at this site' : '' %> yet.</p>
+    <% } else { %>
+      <table class="table table--responsive" id="materialsTable">
+        <thead>
+          <tr>
+            <th class="sortable" data-key="name">Material</th>
+            <th class="sortable" data-key="type">Type</th>
+            <th class="sortable col-right" data-key="quantity">Qty</th>
+            <th class="sortable" data-key="unit">Unit</th>
+            <th class="sortable" data-key="location">Location</th>
+            <th class="sortable" data-key="notes">Notes</th>
+            <th class="sortable" data-key="updated">Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% materials.forEach(function(m) { %>
+            <tr>
+              <td data-label="Material"><%= m.name %></td>
+              <td class="hide-mobile"><%= m.type %></td>
+              <td data-label="Qty" class="col-right" data-sort="<%= m.quantity %>"><%= Number(m.quantity).toLocaleString() %></td>
+              <td class="hide-mobile"><%= m.unit || '' %></td>
+              <td data-label="Location"><%= m.location || '—' %></td>
+              <td class="hide-mobile"><%= m.notes || '' %></td>
+              <td class="hide-mobile" data-sort="<%= m.updated_at || '' %>"><%= h.formatDateTime(m.updated_at) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  (function () {
+    function makeSortable(table) {
+      if (!table) return;
+      var thead = table.querySelector('thead');
+      var tbody = table.querySelector('tbody');
+      Array.prototype.slice.call(thead.querySelectorAll('th.sortable')).forEach(function (th) {
+        th.addEventListener('click', function () {
+          var dir = th.dataset.dir === 'asc' ? 'desc' : 'asc';
+          Array.prototype.slice.call(thead.querySelectorAll('th')).forEach(function (h) {
+            delete h.dataset.dir; h.classList.remove('sort-asc', 'sort-desc');
+          });
+          th.dataset.dir = dir;
+          th.classList.add(dir === 'asc' ? 'sort-asc' : 'sort-desc');
+          var idx = Array.prototype.indexOf.call(th.parentNode.children, th);
+          var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+          rows.sort(function (a, b) {
+            var ac = a.children[idx], bc = b.children[idx];
+            var av = ac.dataset.sort != null ? ac.dataset.sort : ac.textContent.trim().toLowerCase();
+            var bv = bc.dataset.sort != null ? bc.dataset.sort : bc.textContent.trim().toLowerCase();
+            var an = Number(av), bn = Number(bv);
+            var cmp;
+            if (av === '' && bv === '') cmp = 0;
+            else if (av === '') cmp = -1;
+            else if (bv === '') cmp = 1;
+            else if (!isNaN(an) && !isNaN(bn) && av !== '' && bv !== '') cmp = an - bn;
+            else cmp = av < bv ? -1 : av > bv ? 1 : 0;
+            return dir === 'asc' ? cmp : -cmp;
+          });
+          rows.forEach(function (r) { tbody.appendChild(r); });
+        });
+      });
+    }
+    makeSortable(document.getElementById('historyTable'));
+    makeSortable(document.getElementById('materialsTable'));
+
+    var historyBtn = document.getElementById('viewHistoryBtn');
+    var materialsBtn = document.getElementById('viewMaterialsBtn');
+    var historyView = document.getElementById('historyView');
+    var materialsView = document.getElementById('materialsView');
+    function setView(view) {
+      historyView.hidden = view !== 'history';
+      materialsView.hidden = view !== 'materials';
+      historyBtn.classList.toggle('btn', view === 'history');
+      historyBtn.classList.toggle('btn-ghost', view !== 'history');
+      materialsBtn.classList.toggle('btn', view === 'materials');
+      materialsBtn.classList.toggle('btn-ghost', view !== 'materials');
+    }
+    historyBtn.addEventListener('click', function () { setView('history'); });
+    materialsBtn.addEventListener('click', function () { setView('materials'); });
+  })();
+</script>
+
+<%- include('../partials/foot') %>

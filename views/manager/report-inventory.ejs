@@ -1,0 +1,55 @@
+<%- include('../partials/head', { title: 'Inventory report' }) %>
+
+<style>
+  @media print {
+    .topbar, .tabbar, .no-print { display: none !important; }
+    .container { padding: 0; max-width: none; }
+    body { background: #fff; }
+  }
+  table.rep { width: 100%; border-collapse: collapse; margin: .25rem 0 1.75rem; }
+  table.rep th, table.rep td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--hairline); font-size: .9rem; vertical-align: top; }
+  table.rep th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+</style>
+
+<div class="no-print page-head">
+  <a class="btn btn-ghost" href="/manager/reports">← Reports</a>
+  <button type="button" class="btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+</div>
+
+<h1>Inventory report</h1>
+<p class="muted">Generated <%= generatedAt.toLocaleString() %></p>
+
+<h2>Tools (<%= tools.length %>)</h2>
+<table class="rep">
+  <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Location</th><th>Code</th><th>Value</th></tr></thead>
+  <tbody>
+    <% tools.forEach(function(t) { %>
+      <% var loc = t.status === 'signed_out' ? (t.out_site || 'Out') : (t.status === 'available' ? home : '—'); %>
+      <tr>
+        <td><%= t.name %></td>
+        <td><%= h.CATEGORY_LABELS[t.category] %></td>
+        <td><%= h.STATUS_LABELS[t.status] %></td>
+        <td><%= loc %></td>
+        <td><%= t.short_id %></td>
+        <td><%= t.purchase_value != null ? '$' + Number(t.purchase_value).toFixed(2) : '' %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<h2>Materials (<%= materials.length %>)</h2>
+<table class="rep">
+  <thead><tr><th>Material</th><th>Type</th><th>Quantity</th><th>Location</th></tr></thead>
+  <tbody>
+    <% materials.forEach(function(m) { %>
+      <tr>
+        <td><%= m.name %></td>
+        <td><%= m.type %></td>
+        <td><%= Number(m.quantity).toLocaleString() %> <%= m.unit || '' %></td>
+        <td><%= m.location || '' %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<%- include('../partials/foot') %>

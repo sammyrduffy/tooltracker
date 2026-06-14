@@ -1,0 +1,46 @@
+<%
+  const isEdit = employee && employee.id;
+  const action = isEdit ? `/manager/employees/${employee.id}` : '/manager/employees';
+  const name = employee && employee.name ? employee.name : '';
+  const role = employee && employee.role ? employee.role : 'employee';
+  const active = employee ? (String(employee.active) !== '0') : true;
+%>
+<%- include('../partials/head', { title: isEdit ? 'Edit person' : 'Add person' }) %>
+
+<h1><%= isEdit ? 'Edit person' : 'Add person' %></h1>
+
+<% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+<form method="post" action="<%= action %>" class="form card">
+  <label>Name <span class="req">*</span>
+    <input type="text" name="name" value="<%= name %>" required autofocus>
+  </label>
+
+  <label><%= isEdit ? '4-digit PIN (leave blank to keep current)' : '4-digit PIN' %> <% if (!isEdit) { %><span class="req">*</span><% } %>
+    <input type="text" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
+           autocomplete="off" <%= isEdit ? '' : 'required' %> placeholder="e.g. 4821">
+  </label>
+
+  <div class="form-row">
+    <label>Role
+      <select name="role">
+        <option value="employee" <%= role === 'employee' ? 'selected' : '' %>>Employee — field (scan &amp; sign in/out only)</option>
+        <option value="field_user" <%= role === 'field_user' ? 'selected' : '' %>>Field user — manager app (tools read-only, materials full access)</option>
+        <option value="manager" <%= role === 'manager' ? 'selected' : '' %>>Manager — admin (full access)</option>
+      </select>
+    </label>
+    <label>Status
+      <select name="active">
+        <option value="1" <%= active ? 'selected' : '' %>>Active</option>
+        <option value="0" <%= !active ? 'selected' : '' %>>Inactive</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-big"><%= isEdit ? 'Save changes' : 'Add person' %></button>
+    <a class="btn btn-ghost" href="/manager/employees">Cancel</a>
+  </div>
+</form>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,153 @@
+<%- include('../partials/head', { title: 'Materials' }) %>
+
+<div class="page-head">
+  <h1>Materials</h1>
+  <div class="form-actions">
+    <button type="button" id="matMoveToggle" class="btn btn-ghost">Move Multiple</button>
+    <a class="btn btn-ghost" href="/manager/materials/import">⬆ Import CSV</a>
+    <a class="btn" href="/manager/materials/new">+ Add material</a>
+  </div>
+</div>
+
+<!-- Filter by type and/or site -->
+<form class="form filter-bar" method="get" action="/manager/materials">
+  <label>Type
+    <select name="type" onchange="this.form.submit()">
+      <option value="">All types</option>
+      <% types.forEach(function(t) { %>
+        <option value="<%= t %>" <%= t === type ? 'selected' : '' %>><%= t %></option>
+      <% }) %>
+    </select>
+  </label>
+  <label>Site / location
+    <select name="location" onchange="this.form.submit()">
+      <option value="">All locations</option>
+      <% locations.forEach(function(loc) { %>
+        <option value="<%= loc %>" <%= loc === location ? 'selected' : '' %>><%= loc %></option>
+      <% }) %>
+    </select>
+  </label>
+  <% if (type || location) { %><a class="btn btn-ghost btn-sm" href="/manager/materials">Clear filters</a><% } %>
+</form>
+
+<% if (materials.length === 0) { %>
+  <div class="card empty-state">
+    <div class="empty-state__icon">🧱</div>
+    <p><%= (type || location) ? 'No materials match this filter.' : 'No materials yet. Add one, or import a list.' %></p>
+    <a class="btn" href="/manager/materials/new">+ Add material</a>
+  </div>
+<% } else { %>
+  <form id="matMoveForm" method="post" action="/manager/materials/move-selected">
+    <table class="table table--oneline" id="matTable">
+      <thead>
+        <tr>
+          <th class="sel-col"></th>
+          <th class="mat-col-name">Material</th>
+          <th class="mat-col-type">Type</th>
+          <th class="mat-col-qty col-right">Qty</th>
+          <th class="mat-col-loc">Location</th>
+          <th class="mat-summary">Material</th>
+          <th class="row-actions">Actions</th>
+          <th class="expand-col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% materials.forEach(function(m) { %>
+          <tr>
+            <td class="sel-col"><input type="checkbox" class="mat-check" name="mat_ids" value="<%= m.id %>" aria-label="Select <%= m.name %> to move"></td>
+            <td class="mat-col-name">
+              <strong><%= m.name %></strong>
+              <% if (m.notes) { %><br><span class="muted small">· <%= m.notes %></span><% } %>
+            </td>
+            <td class="mat-col-type"><span class="badge badge--type"><%= m.type %></span></td>
+            <td class="nowrap mat-col-qty col-right">
+              <strong><%= Number(m.quantity).toLocaleString() %></strong> <%= m.unit || '' %>
+              <input type="number" name="qty_<%= m.id %>" class="qty-input qty-input--move" hidden
+                     min="0" max="<%= m.quantity %>" step="any" value="<%= m.quantity %>"
+                     aria-label="Quantity of <%= m.name %> to move">
+            </td>
+            <td class="mat-col-loc"><%= m.location || '—' %></td>
+            <td class="mat-summary">
+              <div class="mat-summary__line">
+                <span class="mat-summary__name"><strong><%= m.name %></strong></span>
+                <span class="muted small mat-summary__meta"><%= Number(m.quantity).toLocaleString() %><%= m.unit ? ' ' + m.unit : '' %> · <%= m.location || '—' %></span>
+              </div>
+            </td>
+            <td class="row-actions">
+              <a class="icon-btn" href="/manager/materials/<%= m.id %>/transfer" title="Move" aria-label="Move <%= m.name %>">⇄</a>
+              <a class="icon-btn" href="/manager/materials/<%= m.id %>/edit" title="Edit" aria-label="Edit <%= m.name %>">✏️</a>
+              <form method="post" action="/manager/materials/<%= m.id %>/delete" class="inline"
+                    onsubmit="return confirm('Delete <%= m.name %>?');">
+                <button type="submit" class="icon-btn icon-btn--danger" title="Delete" aria-label="Delete <%= m.name %>">🗑️</button>
+              </form>
+            </td>
+            <td class="expand-col"><button type="button" class="expand-btn mat-expand" aria-label="Show actions for <%= m.name %>" aria-expanded="false">▾</button></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <p class="muted small">
+      <%= materials.length %> material<%= materials.length === 1 ? '' : 's' %><%= type ? ' · type “' + type + '”' : '' %><%= location ? ' · at “' + location + '”' : '' %>.
+      Adding the same material to the same site adds to its quantity. Use <strong>Move</strong> to shift quantity to another site, or check items below to move several at once.
+    </p>
+
+    <!-- Move-selected bar: appears once at least one item is checked -->
+    <div class="select-bar" id="matMoveBar" hidden>
+      <span id="matCount">0 selected</span>
+      <input type="text" name="destination" list="bulk-dest" placeholder="Move to…" required>
+      <datalist id="bulk-dest">
+        <% destinations.forEach(function(d) { %><option value="<%= d %>"></option><% }) %>
+      </datalist>
+      <button type="submit" class="btn">Move selected</button>
+    </div>
+  </form>
+
+  <script>
+    (function () {
+      var table = document.getElementById('matTable');
+      var toggle = document.getElementById('matMoveToggle');
+      var bar = document.getElementById('matMoveBar');
+      var countEl = document.getElementById('matCount');
+      var moving = false;
+      function checked() { return Array.prototype.slice.call(table.querySelectorAll('.mat-check:checked')); }
+      function update() {
+        var boxes = checked();
+        countEl.textContent = boxes.length + ' selected';
+        bar.hidden = !moving || boxes.length === 0;
+        Array.prototype.slice.call(table.querySelectorAll('.qty-input--move')).forEach(function (input) {
+          var row = input.closest('tr');
+          var cb = row.querySelector('.mat-check');
+          input.hidden = !(moving && cb.checked);
+        });
+      }
+      function setMode(on) {
+        moving = on;
+        table.classList.toggle('table--selecting', on);
+        toggle.textContent = on ? 'Done' : 'Move Multiple';
+        toggle.classList.toggle('btn', on);
+        toggle.classList.toggle('btn-ghost', !on);
+        if (!on) { checked().forEach(function (c) { c.checked = false; }); }
+        // Close any expanded action rows when switching modes.
+        Array.prototype.slice.call(table.querySelectorAll('tr.mat-open')).forEach(function (row) {
+          row.classList.remove('mat-open');
+          var btn = row.querySelector('.mat-expand');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        });
+        update();
+      }
+      toggle.addEventListener('click', function () { setMode(!moving); });
+      table.addEventListener('change', update);
+
+      // Mobile: tap the chevron to reveal Move/Edit/Delete for that row.
+      table.addEventListener('click', function (e) {
+        var btn = e.target.closest('.mat-expand');
+        if (!btn) return;
+        var row = btn.closest('tr');
+        var open = row.classList.toggle('mat-open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    })();
+  </script>
+<% } %>
+
+<%- include('../partials/foot') %>

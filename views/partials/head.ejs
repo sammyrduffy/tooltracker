@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tools">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <title><%= typeof title !== 'undefined' ? title : 'Tool Tracker' %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__top">
+      <a class="topbar__brand" href="<%= manager ? '/manager' : '/' %>" aria-label="Home">
+        <img class="brand-logo" src="/logo.svg" alt="Duffy + Associates">
+      </a>
+      <% if (manager) { %>
+        <a class="topbar__signin" href="/manager/settings" aria-label="Settings">⚙️</a>
+        <form action="/manager/logout" method="post" class="inline">
+          <button type="submit" class="linklike">Log out</button>
+        </form>
+      <% } else { %>
+        <a class="topbar__signin" href="/manager/login">Manager sign in</a>
+      <% } %>
+    </div>
+    <% if (manager) { %>
+      <nav class="topbar__tabs">
+        <a href="/manager" class="<%= currentPath === '/manager' ? 'active' : '' %>">Home</a>
+        <a href="/manager/tools" class="<%= currentPath.startsWith('/manager/tools') ? 'active' : '' %>">Tools</a>
+        <a href="/manager/materials" class="<%= currentPath.startsWith('/manager/materials') ? 'active' : '' %>">Materials</a>
+        <% if (manager.role === 'manager') { %>
+          <a href="/manager/labels" class="<%= currentPath.startsWith('/manager/labels') ? 'active' : '' %>">Labels</a>
+          <a href="/manager/employees" class="<%= currentPath.startsWith('/manager/employees') ? 'active' : '' %>">People</a>
+        <% } %>
+        <a href="/manager/sites" class="<%= currentPath.startsWith('/manager/sites') ? 'active' : '' %>">Sites</a>
+        <% if (manager.role === 'manager') { %>
+          <a href="/manager/reports" class="<%= currentPath.startsWith('/manager/reports') ? 'active' : '' %>">Reports</a>
+        <% } %>
+      </nav>
+    <% } %>
+  </header>
+  <main class="container">

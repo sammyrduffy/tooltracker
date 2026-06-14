@@ -1,0 +1,33 @@
+<%- include('../partials/head', { title: 'Move material' }) %>
+
+<div class="page-head">
+  <h1>Move material</h1>
+  <a class="btn btn-ghost" href="/manager/materials">← Materials</a>
+</div>
+
+<% if (error) { %><div class="banner banner--error"><%= error %></div><% } %>
+
+<div class="card">
+  <strong><%= material.name %></strong><br>
+  <span class="muted"><%= Number(material.quantity).toLocaleString() %> <%= material.unit || '' %> at <%= material.location || '—' %></span>
+</div>
+
+<form class="card form" method="post" action="/manager/materials/<%= material.id %>/transfer">
+  <label>How many to move
+    <input type="number" name="quantity" min="1" max="<%= material.quantity %>" step="any"
+           value="<%= material.quantity %>" required autofocus>
+  </label>
+  <label>Move to
+    <input type="text" name="destination" list="dest-list" required placeholder="Site or location…">
+    <datalist id="dest-list">
+      <% locations.forEach(function(l) { %><option value="<%= l %>"></option><% }) %>
+    </datalist>
+  </label>
+  <p class="muted small">If that material already exists at the destination, the amounts are combined.</p>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-big">Move</button>
+    <a class="btn btn-ghost" href="/manager/materials">Cancel</a>
+  </div>
+</form>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Local run logs
+*.log
+
+# Claude Code local config
+.claude/
+
+# Database backups
+backups/
+
+# The live database and uploaded photos (don't commit real data)
+tooltracker.db
+tooltracker.db-journal
+tooltracker.db-wal
+tooltracker.db-shm
+public/uploads/*
+!public/uploads/.gitkeep

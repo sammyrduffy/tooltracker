@@ -1,0 +1,138 @@
+<%- include('partials/head', { title: tool.name }) %>
+
+<% const canSignOut = tool.status === 'available'; %>
+<% const canCheckIn = tool.status === 'signed_out'; %>
+
+<div class="tool-page">
+
+  <% if (error) { %>
+    <div class="banner banner--error"><%= error %></div>
+  <% } %>
+
+  <div class="tool-head">
+    <% if (tool.photo) { %>
+      <img class="tool-photo" src="/uploads/<%= tool.photo %>" alt="<%= tool.name %>">
+    <% } %>
+    <h1><%= tool.name %></h1>
+    <span class="badge badge--<%= tool.status %> badge--lg"><%= h.STATUS_LABELS[tool.status] %></span>
+  </div>
+
+  <% if (!canCheckIn) { %>
+    <p class="loc-line">📍 At the <%= homeLocation %></p>
+  <% } %>
+
+  <% if (canCheckIn && openCheckout) { %>
+    <div class="card status-card">
+      <div><strong>Out to:</strong> <%= openCheckout.employee_name %></div>
+      <% if (openCheckout.site_name) { %><div><strong>Job site:</strong> <%= openCheckout.site_name %></div><% } %>
+      <div><strong>Gone for:</strong> <%= h.durationSince(openCheckout.time_out) %></div>
+    </div>
+  <% } %>
+
+  <!-- The big action button(s) -->
+  <div class="actions">
+    <% if (canSignOut) { %>
+      <% if (employees.length === 0 || sites.length === 0) { %>
+        <p class="muted">A manager needs to add at least one employee and one job site before tools can be signed out.</p>
+      <% } else { %>
+        <button class="btn btn-huge btn-go" data-open-flow="signout">Sign out</button>
+      <% } %>
+    <% } else if (canCheckIn) { %>
+      <% if (employees.length === 0) { %>
+        <p class="muted">A manager needs to add at least one employee before this can be checked in.</p>
+      <% } else { %>
+        <button class="btn btn-huge btn-in" data-open-flow="checkin">Check in</button>
+      <% } %>
+    <% } else { %>
+      <p class="muted">This tool is marked <strong><%= h.STATUS_LABELS[tool.status] %></strong> and isn't available for sign-out. A manager can change its status.</p>
+    <% } %>
+  </div>
+
+  <!-- Tool details -->
+  <div class="card details">
+    <% if (tool.description) { %><div><span class="muted">Description</span><br><%= tool.description %></div><% } %>
+    <div class="details__grid">
+      <div><span class="muted">Category</span><br><%= h.CATEGORY_LABELS[tool.category] %></div>
+      <% if (tool.serial_number) { %><div><span class="muted">Serial #</span><br><%= tool.serial_number %></div><% } %>
+      <% if (tool.purchase_value != null) { %><div><span class="muted">Value</span><br>$<%= Number(tool.purchase_value).toFixed(2) %></div><% } %>
+      <div><span class="muted">Tool code</span><br><%= tool.short_id %></div>
+    </div>
+    <% if (tool.condition_notes) { %><div><span class="muted">Condition notes</span><br><%= tool.condition_notes %></div><% } %>
+  </div>
+</div>
+
+<!-- ===================== SIGN-OUT FLOW (hidden until tapped) ===================== -->
+<% if (canSignOut && employees.length && sites.length) { %>
+<form class="flow" data-flow="signout" method="post" action="/t/<%= tool.short_id %>/signout" hidden>
+  <input type="hidden" name="employee_id">
+  <input type="hidden" name="pin">
+  <input type="hidden" name="site_id">
+
+  <section class="step" data-step="who">
+    <button type="button" class="flow__cancel" data-flow-cancel>✕ Cancel</button>
+    <h2>Who are you?</h2>
+    <div class="picker">
+      <% employees.forEach(function(e) { %>
+        <button type="button" class="pick" data-pick-employee="<%= e.id %>" data-name="<%= e.name %>"><%= e.name %></button>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="step" data-step="pin" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>Enter your PIN</h2>
+    <%- include('partials/keypad') %>
+  </section>
+
+  <section class="step" data-step="site" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>Which job site?</h2>
+    <div class="picker">
+      <% sites.forEach(function(s) { %>
+        <button type="button" class="pick" data-pick-site="<%= s.id %>" data-name="<%= s.name %>"><%= s.name %></button>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="step" data-step="confirm" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>Confirm</h2>
+    <p class="summary" data-summary></p>
+    <button type="submit" class="btn btn-huge btn-go">Confirm sign-out</button>
+  </section>
+</form>
+<% } %>
+
+<!-- ===================== CHECK-IN FLOW (hidden until tapped) ===================== -->
+<% if (canCheckIn && employees.length) { %>
+<form class="flow" data-flow="checkin" method="post" action="/t/<%= tool.short_id %>/checkin" hidden>
+  <input type="hidden" name="employee_id">
+  <input type="hidden" name="pin">
+
+  <section class="step" data-step="who">
+    <button type="button" class="flow__cancel" data-flow-cancel>✕ Cancel</button>
+    <h2>Who are you?</h2>
+    <div class="picker">
+      <% employees.forEach(function(e) { %>
+        <button type="button" class="pick" data-pick-employee="<%= e.id %>" data-name="<%= e.name %>"><%= e.name %></button>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="step" data-step="pin" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>Enter your PIN</h2>
+    <%- include('partials/keypad') %>
+  </section>
+
+  <section class="step" data-step="confirm" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>Confirm</h2>
+    <p class="summary" data-summary></p>
+    <button type="submit" class="btn btn-huge btn-in">Confirm check-in</button>
+  </section>
+</form>
+<% } %>
+
+<script src="/app.js"></script>
+<%- include('partials/foot') %>
