@@ -1,0 +1,30 @@
+# ---------------------------------------------------------------------------
+# render.yaml  —  Tells Render how to run Tool Tracker (free web service).
+#
+# How to use:
+#   1. Push this repo to GitHub (already done).
+#   2. On render.com: New +  ->  Blueprint  ->  pick the tooltracker repo.
+#      Render reads this file and sets everything up.
+#   3. When it asks, paste in the two Turso secrets (URL + token). Everything
+#      else is filled in automatically.
+#
+# The database lives in Turso (free); photos will move to Cloudinary later.
+# ---------------------------------------------------------------------------
+services:
+  - type: web
+    name: tooltracker
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true        # redeploy automatically on every push to GitHub
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: TURSO_DATABASE_URL
+        sync: false         # you paste this in the Render dashboard (it's a secret)
+      - key: TURSO_AUTH_TOKEN
+        sync: false         # you paste this in the Render dashboard (it's a secret)
+      - key: BLE_SOURCE
+        value: none         # cloud server only receives gateway posts; never scans

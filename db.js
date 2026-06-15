@@ -7,15 +7,51 @@
 // To start completely fresh, delete that file and restart the app.
 // ---------------------------------------------------------------------------
 
-const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 
 // The database file lives next to this code file. A TOOLTRACKER_DB environment
 // variable can point it elsewhere (handy for tests / a scratch copy) without
 // touching the real data.
 const DB_FILE = process.env.TOOLTRACKER_DB || path.join(__dirname, 'tooltracker.db');
-const db = new DatabaseSync(DB_FILE);
+
+// ---------------------------------------------------------------------------
+// Pick the database driver. Both expose the SAME synchronous calls
+// (db.prepare(...).get/all/run, db.exec(...)) so nothing else in the app
+// changes.
+//
+//  • In the cloud (Turso configured): use libSQL with an "embedded replica".
+//    The permanent home of the data is Turso; we keep a fast local copy and
+//    sync it. The local copy can be thrown away on every restart — it just
+//    re-downloads from Turso — which is exactly what we need on a host with
+//    no permanent disk.
+//  • On the office PC (no Turso settings): use Node's built-in SQLite, exactly
+//    as before. The single TOOLTRACKER_DB file is the real data.
+//
+// USE_LIBSQL=1 forces the libSQL driver against a plain local file — handy for
+// testing the cloud code path on the PC without touching the real database.
+// ---------------------------------------------------------------------------
+let db;
+if (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN) {
+  const Database = require('libsql');
+  // The local replica is a disposable, fast copy of the Turso data — it
+  // re-downloads on every boot, so it can live in a throwaway temp folder.
+  // (Render's free tier has no permanent disk; a temp path is always writable.)
+  const localCopy = process.env.TOOLTRACKER_DB || path.join(os.tmpdir(), 'tooltracker-replica.db');
+  db = new Database(localCopy, {
+    syncUrl: process.env.TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_AUTH_TOKEN,
+  });
+  db.sync();                                 // pull the latest data on startup
+  setInterval(() => { try { db.sync(); } catch (_) {} }, 60 * 1000); // keep fresh
+} else if (process.env.USE_LIBSQL) {
+  const Database = require('libsql');
+  db = new Database(DB_FILE);
+} else {
+  const { DatabaseSync } = require('node:sqlite');
+  db = new DatabaseSync(DB_FILE);
+}
 
 // Make foreign keys (the links between tables) actually enforced.
 db.exec('PRAGMA foreign_keys = ON;');
