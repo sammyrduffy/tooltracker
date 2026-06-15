@@ -47,12 +47,12 @@
   <label>Photo (optional)
     <input type="file" name="photo" accept="image/*">
     <% if (isEdit && tool.photo) { %>
-      <span class="muted">Current: <img class="thumb" src="/uploads/<%= tool.photo %>" alt=""> (choosing a new file replaces it)</span>
+      <span class="muted">Current: <img class="thumb" src="<%= photoSrc(tool.photo) %>" alt=""> (choosing a new file replaces it)</span>
     <% } %>
   </label>
   <% } else if (isEdit && tool.photo) { %>
   <label>Photo
-    <span class="muted"><img class="thumb" src="/uploads/<%= tool.photo %>" alt=""></span>
+    <span class="muted"><img class="thumb" src="<%= photoSrc(tool.photo) %>" alt=""></span>
   </label>
   <% } %>
 

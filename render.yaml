@@ -8,7 +8,7 @@
 #   3. When it asks, paste in the two Turso secrets (URL + token). Everything
 #      else is filled in automatically.
 #
-# The database lives in Turso (free); photos will move to Cloudinary later.
+# The database lives in Turso (free); tool/site photos live in Cloudinary (free).
 # ---------------------------------------------------------------------------
 services:
   - type: web
@@ -28,3 +28,5 @@ services:
         sync: false         # you paste this in the Render dashboard (it's a secret)
       - key: BLE_SOURCE
         value: none         # cloud server only receives gateway posts; never scans
+      - key: CLOUDINARY_URL
+        sync: false         # paste your Cloudinary "API Environment variable" here (it's a secret)

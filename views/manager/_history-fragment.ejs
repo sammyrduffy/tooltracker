@@ -1,7 +1,7 @@
 <div class="ok-card frag-pad">
   <div class="ok-card__main">
     <% if (tool.photo) { %>
-      <img class="thumb-sq thumb-sq--lg" src="/uploads/<%= tool.photo %>" alt="">
+      <img class="thumb-sq thumb-sq--lg" src="<%= photoSrc(tool.photo) %>" alt="">
     <% } else { %>
       <span class="thumb-sq thumb-sq--lg thumb-sq--ph"><%= h.CATEGORY_ICONS[tool.category] %></span>
     <% } %>

@@ -21,7 +21,7 @@
   <label>Photo (optional)
     <input type="file" name="photo" accept="image/*">
     <% if (isEdit && site.photo) { %>
-      <span class="muted">Current: <img class="thumb" src="/uploads/<%= site.photo %>" alt=""> (choosing a new file replaces it)</span>
+      <span class="muted">Current: <img class="thumb" src="<%= photoSrc(site.photo) %>" alt=""> (choosing a new file replaces it)</span>
     <% } %>
   </label>
   <label>Status

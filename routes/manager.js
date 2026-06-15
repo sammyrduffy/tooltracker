@@ -24,21 +24,11 @@ const { invalidateScannerCache } = require('../lib/ble/ingest');
 // touches them — this module can be required before lib/ble/ingest.js runs.
 ensureBleSchema(db);
 
-// --- Photo uploads for tools and sites (saved into public/uploads) ----------
-const storage = multer.diskStorage({
-  destination: path.join(__dirname, '..', 'public', 'uploads'),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${file.fieldname}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`);
-  },
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8 MB max
-  fileFilter: (req, file, cb) => {
-    cb(null, /^image\//.test(file.mimetype)); // only accept image files
-  },
-});
+// --- Photo uploads for tools and sites --------------------------------------
+// lib/photos picks where they land: public/uploads on a PC, Cloudinary in the
+// cloud. Add `uploadToCloud` right after `upload.single('photo')` on any route
+// that accepts a photo.
+const { upload, uploadToCloud } = require('../lib/photos');
 
 // CSV uploads are read straight from memory (no file saved to disk).
 const uploadCsv = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
@@ -490,7 +480,7 @@ router.get('/tools/new', checkPermission('manager'), (req, res) => {
   res.render('manager/tool-form', { tool: null, categories: categoryKeys(), error: null });
 });
 
-router.post('/tools', checkPermission('manager'), upload.single('photo'), (req, res) => {
+router.post('/tools', checkPermission('manager'), upload.single('photo'), uploadToCloud, (req, res) => {
   const data = readToolForm(req);
   if (data.error) {
     return res.status(400).render('manager/tool-form', {
@@ -515,7 +505,7 @@ router.get('/tools/:id/edit', (req, res) => {
   res.render('manager/tool-form', { tool, categories: categoryKeys(), error: null });
 });
 
-router.post('/tools/:id', checkPermission('manager'), upload.single('photo'), (req, res) => {
+router.post('/tools/:id', checkPermission('manager'), upload.single('photo'), uploadToCloud, (req, res) => {
   const tool = db.prepare('SELECT * FROM tools WHERE id = ?').get(Number(req.params.id));
   if (!tool) return res.redirect('/manager/tools');
   const data = readToolForm(req);
@@ -1144,7 +1134,7 @@ router.get('/sites/:id/report-fragment', (req, res) => {
   });
 });
 
-router.post('/sites', checkPermission('manager'), upload.single('photo'), (req, res) => {
+router.post('/sites', checkPermission('manager'), upload.single('photo'), uploadToCloud, (req, res) => {
   const data = readSiteForm(req);
   if (data.error) {
     return res.status(400).render('manager/site-form', { site: req.body, error: data.error });
@@ -1160,7 +1150,7 @@ router.get('/sites/:id/edit', checkPermission('manager'), (req, res) => {
   res.render('manager/site-form', { site, error: null });
 });
 
-router.post('/sites/:id', checkPermission('manager'), upload.single('photo'), (req, res) => {
+router.post('/sites/:id', checkPermission('manager'), upload.single('photo'), uploadToCloud, (req, res) => {
   const site = db.prepare('SELECT * FROM sites WHERE id = ?').get(Number(req.params.id));
   if (!site) return res.redirect('/manager/sites');
   const data = readSiteForm(req);

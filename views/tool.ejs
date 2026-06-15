@@ -11,7 +11,7 @@
 
   <div class="tool-head">
     <% if (tool.photo) { %>
-      <img class="tool-photo" src="/uploads/<%= tool.photo %>" alt="<%= tool.name %>">
+      <img class="tool-photo" src="<%= photoSrc(tool.photo) %>" alt="<%= tool.name %>">
     <% } %>
     <h1><%= tool.name %></h1>
     <span class="badge badge--<%= tool.status %> badge--lg"><%= h.STATUS_LABELS[tool.status] %></span>

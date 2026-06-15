@@ -14,7 +14,7 @@
     <% tools.forEach(function(t) { %>
       <li>
         <a class="tool-list__item" href="/t/<%= t.short_id %>">
-          <% if (t.photo) { %><img class="thumb-sq" src="/uploads/<%= t.photo %>" alt="">
+          <% if (t.photo) { %><img class="thumb-sq" src="<%= photoSrc(t.photo) %>" alt="">
           <% } else { %><span class="thumb-sq thumb-sq--ph"><%= h.CATEGORY_ICONS[t.category] %></span><% } %>
           <span class="ti">
             <span class="tool-list__name"><%= t.name %></span>

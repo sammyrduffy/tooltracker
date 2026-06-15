@@ -63,6 +63,7 @@ app.use((req, res, next) => {
     CATEGORY_LABELS: cat.labels, CATEGORY_ICONS: cat.icons, CATEGORY_COLORS: cat.colors,
   });                               // formatting helpers usable in templates
   res.locals.manager = req.session.manager || null; // who (if anyone) is logged in
+  res.locals.photoSrc = require('./lib/photos').photoSrc; // local filename OR Cloudinary URL → <img src>
   res.locals.currentPath = req.path;
   // One-time "flash" message, shown as a toast on the next page then cleared.
   res.locals.flash = req.session.flash || null;

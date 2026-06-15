@@ -19,7 +19,7 @@
       <li data-search="<%= (t.name + ' ' + t.short_id).toLowerCase() %>">
         <a class="tool-list__item" href="/t/<%= t.short_id %>">
           <% if (t.photo) { %>
-            <img class="thumb-sq" src="/uploads/<%= t.photo %>" alt="">
+            <img class="thumb-sq" src="<%= photoSrc(t.photo) %>" alt="">
           <% } else { %>
             <span class="thumb-sq thumb-sq--ph"><%= h.CATEGORY_ICONS[t.category] %></span>
           <% } %>

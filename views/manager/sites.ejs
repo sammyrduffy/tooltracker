@@ -39,7 +39,7 @@
         <tr>
           <td data-label="Name"><a href="/manager/sites/<%= s.id %>/contents"><%= s.name %></a></td>
           <td class="hide-mobile">
-            <% if (s.photo) { %><img class="thumb-sq" src="/uploads/<%= s.photo %>" alt="">
+            <% if (s.photo) { %><img class="thumb-sq" src="<%= photoSrc(s.photo) %>" alt="">
             <% } else { %><span class="thumb-sq thumb-sq--ph">📍</span><% } %>
           </td>
           <td class="muted" data-label="Address"><%= s.address || '' %></td>
