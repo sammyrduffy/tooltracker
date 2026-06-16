@@ -159,7 +159,7 @@ const { materialKey } = require('./lib/materials');
 (function ensureMaterialKey() {
   const cols = db.prepare('PRAGMA table_info(materials)').all();
   if (!cols.some((c) => c.name === 'name_key')) {
-    db.exec('ALTER TABLE materials ADD COLUMN name_key TEXT');
+    db.prepare('ALTER TABLE materials ADD COLUMN name_key TEXT').run();
   }
   const rows = db.prepare("SELECT id, name FROM materials WHERE name_key IS NULL OR name_key = ''").all();
   const upd = db.prepare('UPDATE materials SET name_key = ? WHERE id = ?');
@@ -173,7 +173,7 @@ const { materialKey } = require('./lib/materials');
 (function ensureSitePhoto() {
   const cols = db.prepare('PRAGMA table_info(sites)').all();
   if (!cols.some((c) => c.name === 'photo')) {
-    db.exec('ALTER TABLE sites ADD COLUMN photo TEXT');
+    db.prepare('ALTER TABLE sites ADD COLUMN photo TEXT').run();
   }
 })();
 
@@ -184,7 +184,7 @@ const { materialKey } = require('./lib/materials');
 (function ensureBillableRate() {
   const cols = db.prepare('PRAGMA table_info(tools)').all();
   if (!cols.some((c) => c.name === 'billable_rate')) {
-    db.exec('ALTER TABLE tools ADD COLUMN billable_rate REAL');
+    db.prepare('ALTER TABLE tools ADD COLUMN billable_rate REAL').run();
   }
 })();
 
