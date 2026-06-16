@@ -1,0 +1,38 @@
+# Tool Tracker BLE gateway — systemd service for Raspberry Pi.
+#
+# SETUP (run these commands on the Pi over SSH):
+#
+#   1. Copy this file to the system services folder:
+#        sudo cp /home/pi/tooltracker/gateway/ble-gateway.service /etc/systemd/system/
+#
+#   2. Edit the scanner key to match this Pi's site name:
+#        sudo nano /etc/systemd/system/ble-gateway.service
+#      (change "shop-01" in the Environment line to e.g. "site-oakwood")
+#
+#   3. Enable and start:
+#        sudo systemctl daemon-reload
+#        sudo systemctl enable ble-gateway
+#        sudo systemctl start ble-gateway
+#
+#   4. Check it's running:
+#        sudo systemctl status ble-gateway
+#        sudo journalctl -u ble-gateway -f    ← live log
+
+[Unit]
+Description=Tool Tracker BLE Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/tooltracker/gateway
+Environment="SCANNER_KEY=shop-01"
+Environment="API_URL=https://tooltracker-hlrd.onrender.com/api/beacon-data"
+Environment="BEACON_UUID=FDA50693-A4E2-4FB1-AFCF-C6EB07647825"
+ExecStart=/usr/bin/python3 /home/pi/tooltracker/gateway/ble-gateway.py
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
