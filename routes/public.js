@@ -12,6 +12,7 @@ const QRCode = require('qrcode');
 const router = express.Router();
 const { db, hashPin, verifyPin, transaction, getSetting } = require('../db');
 const { resolveBaseUrl } = require('../lib/baseurl');
+const { upload, uploadToCloud } = require('../lib/photos');
 
 // Where tools live when they're not signed out. Defaults to "Office" but can be
 // changed by saving a 'home_location' setting.
@@ -35,6 +36,13 @@ const getActiveEmployees = db.prepare(
 const getActiveSites = db.prepare(
   'SELECT id, name FROM sites WHERE active = 1 ORDER BY name'
 );
+const getOpenIssueByTool = db.prepare(`
+  SELECT i.note, i.created_at, e.name AS reporter_name
+  FROM tool_issues i
+  LEFT JOIN employees e ON e.id = i.reported_by
+  WHERE i.tool_id = ? AND i.status = 'open'
+  ORDER BY i.id DESC LIMIT 1
+`);
 
 // Loads the tool + its current holder (if any) and the picker lists.
 function loadToolContext(shortId) {
@@ -44,6 +52,7 @@ function loadToolContext(shortId) {
   return {
     tool,
     openCheckout,
+    openIssue: tool.status === 'needs_repair' ? (getOpenIssueByTool.get(tool.id) || null) : null,
     homeLocation: homeLocation(),
     employees: getActiveEmployees.all().map((e) => ({ id: e.id, name: e.name })),
     sites: getActiveSites.all(),
@@ -137,15 +146,21 @@ router.post('/t/:shortId/signout', (req, res) => {
     return showToolError(res, shortId, 'That PIN was not correct. Please try again.');
   }
 
-  const site = db.prepare('SELECT * FROM sites WHERE id = ? AND active = 1')
-    .get(Number(req.body.site_id));
-  if (!site) return showToolError(res, shortId, 'Please choose a job site and try again.');
+  // The job site is optional — a tool can be signed out to a person who keeps
+  // it with no specific site. If one is given, it must be a real active site.
+  let siteId = null;
+  if ((req.body.site_id || '').trim() !== '') {
+    const site = db.prepare('SELECT * FROM sites WHERE id = ? AND active = 1')
+      .get(Number(req.body.site_id));
+    if (!site) return showToolError(res, shortId, 'Please choose a job site and try again.');
+    siteId = site.id;
+  }
 
   // Record the checkout and flip the tool's status — done as one atomic step.
   transaction(() => {
     db.prepare(
       'INSERT INTO checkouts (tool_id, employee_id, site_id) VALUES (?, ?, ?)'
-    ).run(tool.id, employee.id, site.id);
+    ).run(tool.id, employee.id, siteId);
     db.prepare("UPDATE tools SET status = 'signed_out' WHERE id = ?").run(tool.id);
   });
 
@@ -179,6 +194,35 @@ router.post('/t/:shortId/checkin', (req, res) => {
   });
 
   req.session.flash = { type: 'success', text: `✓ Checked in — ${tool.name} is back at the ${homeLocation()}` };
+  res.redirect(`/t/${shortId}`);
+});
+
+// --- Handle "Report an issue" (field crew flags a tool as needing repair) ----
+router.post('/t/:shortId/report-issue', upload.single('photo'), uploadToCloud, (req, res) => {
+  const shortId = req.params.shortId;
+  const tool = getToolByShortId.get(shortId);
+  if (!tool) return showToolError(res, shortId, 'That tool no longer exists.');
+
+  const employee = db.prepare('SELECT * FROM employees WHERE id = ? AND active = 1')
+    .get(Number(req.body.employee_id));
+  if (!employee) return showToolError(res, shortId, 'Please choose your name and try again.');
+  if (!verifyPin(req.body.pin, employee.pin_hash)) {
+    return showToolError(res, shortId, 'That PIN was not correct. Please try again.');
+  }
+
+  const note = (req.body.note || '').trim() || null;
+
+  // Flag the tool as needing repair, close any open checkout (it's coming off
+  // the job), and log the issue so a manager sees who reported what.
+  transaction(() => {
+    db.prepare("UPDATE checkouts SET time_in = datetime('now') WHERE tool_id = ? AND time_in IS NULL").run(tool.id);
+    db.prepare("UPDATE tools SET status = 'needs_repair' WHERE id = ?").run(tool.id);
+    db.prepare(
+      'INSERT INTO tool_issues (tool_id, reported_by, note, photo) VALUES (?, ?, ?, ?)'
+    ).run(tool.id, employee.id, note, req.file ? req.file.filename : null);
+  });
+
+  req.session.flash = { type: 'success', text: `✓ Reported — ${tool.name} flagged for repair. Thanks, ${employee.name}.` };
   res.redirect(`/t/${shortId}`);
 });
 

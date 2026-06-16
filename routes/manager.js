@@ -348,7 +348,7 @@ router.get('/reports/inventory', checkPermission('manager'), (req, res) => {
 // ===========================================================================
 // TOOLS
 // ===========================================================================
-const TOOL_STATUSES = ['available', 'signed_out', 'in_repair', 'missing'];
+const TOOL_STATUSES = ['available', 'signed_out', 'needs_repair', 'in_repair', 'missing'];
 
 router.get('/tools', (req, res) => {
   const q = (req.query.q || '').trim();
@@ -459,32 +459,46 @@ router.post('/tools/import', checkPermission('manager'), uploadCsv.single('file'
   res.render('manager/tool-import', { result, error: null });
 });
 
-// Mark a tool Available / In repair / Missing. Any open checkout is closed
-// (a repair, a write-off, or a manager force-return all end the current loan).
+// Mark a tool Available / Needs repair / In repair / Missing. Any open checkout
+// is closed (a repair, a write-off, or a manager force-return all end the loan).
+// Moving to In repair or Available also resolves any open field-reported issues.
 router.post('/tools/:id/status', checkPermission('manager'), (req, res) => {
   const tool = db.prepare('SELECT * FROM tools WHERE id = ?').get(Number(req.params.id));
   if (!tool) return res.redirect('/manager/tools');
-  const status = ['available', 'in_repair', 'missing'].includes(req.body.status) ? req.body.status : null;
+  const status = ['available', 'needs_repair', 'in_repair', 'missing'].includes(req.body.status) ? req.body.status : null;
   if (status) {
     transaction(() => {
       db.prepare("UPDATE checkouts SET time_in = datetime('now') WHERE tool_id = ? AND time_in IS NULL").run(tool.id);
       db.prepare('UPDATE tools SET status = ? WHERE id = ?').run(status, tool.id);
+      // Taking it in for repair (or returning it to service) clears open issues.
+      if (status === 'in_repair' || status === 'available') {
+        db.prepare("UPDATE tool_issues SET status = 'resolved', resolved_at = datetime('now') WHERE tool_id = ? AND status = 'open'").run(tool.id);
+      }
     });
-    req.session.flash = { type: 'success', text: '✓ Marked ' + status.replace('_', ' ') };
+    req.session.flash = { type: 'success', text: '✓ Marked ' + helpers.STATUS_LABELS[status] };
   }
   const back = req.body.return_to;
   res.redirect(back && back.startsWith('/manager') ? back : '/manager/tools');
 });
 
 router.get('/tools/new', checkPermission('manager'), (req, res) => {
-  res.render('manager/tool-form', { tool: null, categories: categoryKeys(), error: null });
+  res.render('manager/tool-form', { tool: null, categories: categoryKeys(), error: null, openIssue: null });
 });
+
+// The most recent unresolved field-reported issue for a tool (or null).
+const getOpenIssue = db.prepare(`
+  SELECT i.*, e.name AS reporter_name
+  FROM tool_issues i
+  LEFT JOIN employees e ON e.id = i.reported_by
+  WHERE i.tool_id = ? AND i.status = 'open'
+  ORDER BY i.id DESC LIMIT 1
+`);
 
 router.post('/tools', checkPermission('manager'), upload.single('photo'), uploadToCloud, (req, res) => {
   const data = readToolForm(req);
   if (data.error) {
     return res.status(400).render('manager/tool-form', {
-      tool: req.body, categories: categoryKeys(), error: data.error,
+      tool: req.body, categories: categoryKeys(), error: data.error, openIssue: null,
     });
   }
   const shortId = generateUniqueShortId();
@@ -502,7 +516,7 @@ router.post('/tools', checkPermission('manager'), upload.single('photo'), upload
 router.get('/tools/:id/edit', (req, res) => {
   const tool = db.prepare('SELECT * FROM tools WHERE id = ?').get(Number(req.params.id));
   if (!tool) return res.redirect('/manager/tools');
-  res.render('manager/tool-form', { tool, categories: categoryKeys(), error: null });
+  res.render('manager/tool-form', { tool, categories: categoryKeys(), error: null, openIssue: getOpenIssue.get(tool.id) || null });
 });
 
 router.post('/tools/:id', checkPermission('manager'), upload.single('photo'), uploadToCloud, (req, res) => {
@@ -512,6 +526,7 @@ router.post('/tools/:id', checkPermission('manager'), upload.single('photo'), up
   if (data.error) {
     return res.status(400).render('manager/tool-form', {
       tool: { ...tool, ...req.body }, categories: categoryKeys(), error: data.error,
+      openIssue: getOpenIssue.get(tool.id) || null,
     });
   }
   db.prepare(`

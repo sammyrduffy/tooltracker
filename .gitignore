@@ -10,6 +10,9 @@ node_modules/
 # Database backups
 backups/
 
+# Local scratch/test helpers (e.g. scratch-server.js, scratch.db)
+scratch*
+
 # The live database and uploaded photos (don't commit real data)
 tooltracker.db
 tooltracker.db-journal

@@ -132,6 +132,22 @@ db.exec(`
     notes       TEXT,
     updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- Field-reported tool problems. A crew member flags a tool as needing repair
+  -- (with a note + optional photo); a manager later resolves it.
+  CREATE TABLE IF NOT EXISTS tool_issues (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    tool_id     INTEGER NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
+    reported_by INTEGER REFERENCES employees(id),
+    note        TEXT,
+    photo       TEXT,                              -- filename/URL of an uploaded photo (optional)
+    status      TEXT    NOT NULL DEFAULT 'open',   -- open | resolved
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    resolved_at TEXT
+  );
+
+  -- Speeds up "does this tool have an open issue?" lookups.
+  CREATE INDEX IF NOT EXISTS idx_tool_issues_open ON tool_issues(tool_id) WHERE status = 'open';
 `);
 
 // ---------------------------------------------------------------------------

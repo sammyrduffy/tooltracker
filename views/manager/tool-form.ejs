@@ -70,12 +70,21 @@
   <div class="card">
     <h2>Status</h2>
     <p>Current: <span class="badge badge--<%= status %> badge--lg"><%= h.STATUS_LABELS[status] %></span></p>
+    <% if (openIssue) { %>
+      <div class="banner banner--warn">
+        ⚠ <strong>Issue reported</strong><% if (openIssue.reporter_name) { %> by <%= openIssue.reporter_name %><% } %>
+        <% if (openIssue.created_at) { %> · <%= h.formatDateTime(openIssue.created_at) %><% } %>
+        <% if (openIssue.note) { %><br><%= openIssue.note %><% } %>
+        <% if (openIssue.photo) { %><br><img class="thumb" src="<%= photoSrc(openIssue.photo) %>" alt=""><% } %>
+        <br><span class="muted small">Marking "In repair" or "Available" clears this.</span>
+      </div>
+    <% } %>
     <% if (canEdit) { %>
       <% if (status === 'signed_out') { %>
         <p class="muted small">This tool is signed out. Marking it below will return it (closing the current checkout).</p>
       <% } %>
       <div class="form-actions status-actions">
-        <% ['available','in_repair','missing'].forEach(function(s) { if (s === status) return; %>
+        <% ['available','needs_repair','in_repair','missing'].forEach(function(s) { if (s === status) return; %>
           <form method="post" action="/manager/tools/<%= tool.id %>/status" class="inline">
             <input type="hidden" name="status" value="<%= s %>">
             <input type="hidden" name="return_to" value="/manager/tools/<%= tool.id %>/edit">

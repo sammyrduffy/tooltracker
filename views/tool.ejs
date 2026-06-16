@@ -24,16 +24,24 @@
   <% if (canCheckIn && openCheckout) { %>
     <div class="card status-card">
       <div><strong>Out to:</strong> <%= openCheckout.employee_name %></div>
-      <% if (openCheckout.site_name) { %><div><strong>Job site:</strong> <%= openCheckout.site_name %></div><% } %>
+      <% if (openCheckout.site_name) { %><div><strong>Job site:</strong> <%= openCheckout.site_name %></div><% } else { %><div class="muted">No job site — held by <%= openCheckout.employee_name %></div><% } %>
       <div><strong>Gone for:</strong> <%= h.durationSince(openCheckout.time_out) %></div>
+    </div>
+  <% } %>
+
+  <% if (tool.status === 'needs_repair') { %>
+    <div class="banner banner--warn">
+      ⚠ <strong>Flagged for repair</strong><% if (openIssue && openIssue.reporter_name) { %> by <%= openIssue.reporter_name %><% } %>.
+      <% if (openIssue && openIssue.note) { %><br><%= openIssue.note %><% } %>
+      <br><span class="muted small">A manager will take it in for repair.</span>
     </div>
   <% } %>
 
   <!-- The big action button(s) -->
   <div class="actions">
     <% if (canSignOut) { %>
-      <% if (employees.length === 0 || sites.length === 0) { %>
-        <p class="muted">A manager needs to add at least one employee and one job site before tools can be signed out.</p>
+      <% if (employees.length === 0) { %>
+        <p class="muted">A manager needs to add at least one employee before tools can be signed out.</p>
       <% } else { %>
         <button class="btn btn-huge btn-go" data-open-flow="signout">Sign out</button>
       <% } %>
@@ -45,6 +53,10 @@
       <% } %>
     <% } else { %>
       <p class="muted">This tool is marked <strong><%= h.STATUS_LABELS[tool.status] %></strong> and isn't available for sign-out. A manager can change its status.</p>
+    <% } %>
+
+    <% if ((canSignOut || canCheckIn) && employees.length) { %>
+      <button class="btn btn-ghost btn-big" data-open-flow="report">⚠ Report an issue</button>
     <% } %>
   </div>
 
@@ -62,7 +74,7 @@
 </div>
 
 <!-- ===================== SIGN-OUT FLOW (hidden until tapped) ===================== -->
-<% if (canSignOut && employees.length && sites.length) { %>
+<% if (canSignOut && employees.length) { %>
 <form class="flow" data-flow="signout" method="post" action="/t/<%= tool.short_id %>/signout" hidden>
   <input type="hidden" name="employee_id">
   <input type="hidden" name="pin">
@@ -88,6 +100,7 @@
     <button type="button" class="flow__cancel" data-flow-back>← Back</button>
     <h2>Which job site?</h2>
     <div class="picker">
+      <button type="button" class="pick pick--muted" data-pick-site="" data-name="">No job site — I'll keep it</button>
       <% sites.forEach(function(s) { %>
         <button type="button" class="pick" data-pick-site="<%= s.id %>" data-name="<%= s.name %>"><%= s.name %></button>
       <% }) %>
@@ -130,6 +143,49 @@
     <h2>Confirm</h2>
     <p class="summary" data-summary></p>
     <button type="submit" class="btn btn-huge btn-in">Confirm check-in</button>
+  </section>
+</form>
+<% } %>
+
+<!-- ===================== REPORT-ISSUE FLOW (hidden until tapped) ===================== -->
+<% if ((canSignOut || canCheckIn) && employees.length) { %>
+<form class="flow" data-flow="report" method="post" action="/t/<%= tool.short_id %>/report-issue" enctype="multipart/form-data" hidden>
+  <input type="hidden" name="employee_id">
+  <input type="hidden" name="pin">
+
+  <section class="step" data-step="who">
+    <button type="button" class="flow__cancel" data-flow-cancel>✕ Cancel</button>
+    <h2>Who are you?</h2>
+    <div class="picker">
+      <% employees.forEach(function(e) { %>
+        <button type="button" class="pick" data-pick-employee="<%= e.id %>" data-name="<%= e.name %>"><%= e.name %></button>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="step" data-step="pin" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>Enter your PIN</h2>
+    <%- include('partials/keypad') %>
+  </section>
+
+  <section class="step" data-step="note" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>What's wrong?</h2>
+    <label>Describe the problem (optional)
+      <textarea name="note" rows="3" placeholder="e.g. blade is cracked, won't start…"></textarea>
+    </label>
+    <label>Photo (optional)
+      <input type="file" name="photo" accept="image/*">
+    </label>
+    <button type="button" class="btn btn-big" data-flow-next>Continue</button>
+  </section>
+
+  <section class="step" data-step="confirm" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>Confirm</h2>
+    <p class="summary" data-summary></p>
+    <button type="submit" class="btn btn-huge btn-ghost">Flag for repair</button>
   </section>
 </form>
 <% } %>

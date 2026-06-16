@@ -39,6 +39,9 @@
   --danger: #ef4444;       /* missing — soft red */
   --danger-tint: rgba(239, 68, 68, 0.16);
 
+  --warn: #f97316;         /* needs repair / alerts — orange */
+  --warn-tint: rgba(249, 115, 22, 0.16);
+
   --nav-bg: rgba(9, 9, 11, 0.85);
   --radius: 12px;
   --radius-lg: 12px;
@@ -145,6 +148,7 @@ a:active { opacity: .6; }
 
 .banner { padding: .85rem 1rem; border-radius: var(--radius); margin: 0 0 1rem; font-weight: 500; }
 .banner--error { background: var(--danger-tint); color: var(--danger); }
+.banner--warn { background: var(--warn-tint); color: var(--warn); }
 
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 
@@ -190,6 +194,7 @@ a:active { opacity: .6; }
 }
 .badge--available { background: var(--go-tint); color: var(--go); }
 .badge--signed_out { background: var(--in-tint); color: var(--in); }
+.badge--needs_repair { background: var(--warn-tint); color: var(--warn); }
 .badge--in_repair { background: var(--repair-tint); color: var(--repair); }
 .badge--missing { background: var(--danger-tint); color: var(--danger); }
 .badge--type { background: rgba(255,255,255,.08); color: var(--ink); }
@@ -271,6 +276,7 @@ a:active { opacity: .6; }
   transition: background .12s, transform .05s;
 }
 .pick:active { background: var(--brand-tint); transform: scale(0.98); }
+.pick--muted { border-color: var(--muted); color: var(--muted); font-weight: 500; min-height: 56px; font-size: 1rem; }
 
 /* PIN entry */
 .pin { max-width: 340px; margin: 0 auto; }

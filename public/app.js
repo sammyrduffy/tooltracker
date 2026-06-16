@@ -73,6 +73,10 @@
     form.querySelectorAll('[data-flow-back]').forEach((b) =>
       b.addEventListener('click', () => prevStep(form)));
 
+    // Manual "Continue" buttons on steps with no auto-advance (e.g. the note step).
+    form.querySelectorAll('[data-flow-next]').forEach((b) =>
+      b.addEventListener('click', () => nextStep(form)));
+
     // Pick your name.
     form.querySelectorAll('[data-pick-employee]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -132,8 +136,13 @@
   function fillSummary(form) {
     const el = form.querySelector('[data-summary]');
     if (!el) return;
-    if (form.getAttribute('data-flow') === 'signout') {
-      el.textContent = `Sign out "${toolName}" to ${state.employeeName} for ${state.siteName}.`;
+    const flow = form.getAttribute('data-flow');
+    if (flow === 'signout') {
+      el.textContent = state.siteName
+        ? `Sign out "${toolName}" to ${state.employeeName} for ${state.siteName}.`
+        : `Sign out "${toolName}" to ${state.employeeName} (no job site).`;
+    } else if (flow === 'report') {
+      el.textContent = `Flag "${toolName}" as needing repair — reported by ${state.employeeName}.`;
     } else {
       el.textContent = `Check in "${toolName}" as ${state.employeeName}.`;
     }
