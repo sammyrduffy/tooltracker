@@ -88,6 +88,15 @@ app.use((req, res) => {
   });
 });
 
+// --- Error handler (surfaces the real message so we can diagnose) -----------
+app.use((err, req, res, next) => {
+  console.error('[ERROR]', err.message, err.stack);
+  res.status(500).send(
+    `<pre style="font:14px monospace;padding:2rem;white-space:pre-wrap">` +
+    `500 — ${err.message}\n\n${err.stack}</pre>`
+  );
+});
+
 // --- Start-up: ensure there is a manager login, then listen -----------------
 bootstrapDefaultManager();
 require('./lib/ble').initBle();   // beacon tables + ingest queue (+ optional scanner)
