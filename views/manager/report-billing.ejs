@@ -1,0 +1,86 @@
+<%- include('../partials/head', { title: 'Billing report' }) %>
+
+<style>
+  @media print {
+    .topbar, .tabbar, .no-print { display: none !important; }
+    .container { padding: 0; max-width: none; }
+    body { background: #fff; }
+  }
+  table.rep { width: 100%; border-collapse: collapse; margin: .25rem 0 1.75rem; }
+  table.rep th, table.rep td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--hairline); font-size: .9rem; vertical-align: top; }
+  table.rep th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+  table.rep td.num, table.rep th.num { text-align: right; white-space: nowrap; }
+  .rep tfoot td { font-weight: 700; border-top: 2px solid var(--hairline); border-bottom: none; }
+  .date-form { display: flex; gap: .6rem; flex-wrap: wrap; align-items: end; margin: .5rem 0 1.25rem; }
+  .date-form label { display: flex; flex-direction: column; font-size: .8rem; color: var(--muted); gap: .25rem; }
+  .grand { font-size: 1.25rem; font-weight: 700; margin: 0 0 1.5rem; }
+</style>
+
+<div class="no-print page-head">
+  <a class="btn btn-ghost" href="/manager/reports">← Reports</a>
+  <div style="display:flex; gap:.5rem;">
+    <a class="btn btn-ghost" href="/manager/export/billing.csv?from=<%= from %>&to=<%= to %>">⬇ CSV</a>
+    <button type="button" class="btn" onclick="window.print()">🖨️ Print / PDF</button>
+  </div>
+</div>
+
+<h1>Billing report</h1>
+
+<form class="date-form no-print" method="get" action="/manager/reports/billing">
+  <label>From <input type="date" name="from" value="<%= from %>"></label>
+  <label>To <input type="date" name="to" value="<%= to %>"></label>
+  <button type="submit" class="btn btn-ghost">Apply</button>
+</form>
+
+<p class="muted">Tools signed out between <strong><%= from %></strong> and <strong><%= to %></strong>. Only tools with a daily rate are billed; partial days round up (minimum 1 day).</p>
+
+<p class="grand">Total to bill: $<%= grandTotal.toFixed(2) %></p>
+
+<% if (lineItems.length === 0) { %>
+  <div class="card"><p class="muted">No billable tool usage in this date range. Set a “Billable rate ($ per day)” on a tool, then sign it out, and it will appear here.</p></div>
+<% } else { %>
+
+<h2>By job site</h2>
+<table class="rep">
+  <thead><tr><th>Job site</th><th class="num">Days</th><th class="num">Charge</th></tr></thead>
+  <tbody>
+    <% bySite.forEach(function(s) { %>
+      <tr><td><%= s.site %></td><td class="num"><%= s.days %></td><td class="num">$<%= s.charge.toFixed(2) %></td></tr>
+    <% }) %>
+  </tbody>
+  <tfoot><tr><td>Total</td><td class="num"></td><td class="num">$<%= grandTotal.toFixed(2) %></td></tr></tfoot>
+</table>
+
+<h2>By tool</h2>
+<table class="rep">
+  <thead><tr><th>Tool</th><th>Code</th><th class="num">Days</th><th class="num">Charge</th></tr></thead>
+  <tbody>
+    <% byTool.forEach(function(t) { %>
+      <tr><td><%= t.tool %></td><td><%= t.code %></td><td class="num"><%= t.days %></td><td class="num">$<%= t.charge.toFixed(2) %></td></tr>
+    <% }) %>
+  </tbody>
+  <tfoot><tr><td>Total</td><td></td><td class="num"></td><td class="num">$<%= grandTotal.toFixed(2) %></td></tr></tfoot>
+</table>
+
+<h2>Detail (<%= lineItems.length %> checkout<%= lineItems.length === 1 ? '' : 's' %>)</h2>
+<table class="rep">
+  <thead><tr><th>Tool</th><th>Site</th><th>Person</th><th>Out</th><th>In</th><th class="num">Days</th><th class="num">Rate</th><th class="num">Charge</th></tr></thead>
+  <tbody>
+    <% lineItems.forEach(function(r) { %>
+      <tr>
+        <td><%= r.tool %></td>
+        <td><%= r.site || 'No job site' %></td>
+        <td><%= r.employee %></td>
+        <td><%= h.formatDateTime(r.time_out) %></td>
+        <td><%= r.time_in ? h.formatDateTime(r.time_in) : 'still out' %></td>
+        <td class="num"><%= r.days %></td>
+        <td class="num">$<%= Number(r.rate).toFixed(2) %></td>
+        <td class="num">$<%= r.charge.toFixed(2) %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<% } %>
+
+<%- include('../partials/foot') %>

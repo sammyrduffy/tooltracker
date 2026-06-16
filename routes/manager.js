@@ -345,6 +345,64 @@ router.get('/reports/inventory', checkPermission('manager'), (req, res) => {
   res.render('manager/report-inventory', { tools, materials, home, generatedAt: new Date() });
 });
 
+// --- Billing -----------------------------------------------------------------
+// Charge = billable days out × the tool's per-day rate, for every checkout that
+// STARTED within the date range, limited to tools that have a rate set.
+// Returns line items plus totals grouped by tool and by site.
+function buildBilling(fromRaw, toRaw) {
+  const to = (toRaw || '').trim() || new Date().toISOString().slice(0, 10);
+  const from = (fromRaw || '').trim() || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+
+  const rows = db.prepare(`
+    SELECT t.id AS tool_id, t.name AS tool, t.short_id AS code, t.billable_rate AS rate,
+           e.name AS employee, s.id AS site_id, s.name AS site, c.time_out, c.time_in
+    FROM checkouts c
+    JOIN tools t ON t.id = c.tool_id
+    JOIN employees e ON e.id = c.employee_id
+    LEFT JOIN sites s ON s.id = c.site_id
+    WHERE t.billable_rate IS NOT NULL AND t.billable_rate > 0
+      AND date(c.time_out) >= date(?) AND date(c.time_out) <= date(?)
+    ORDER BY c.time_out DESC
+  `).all(from, to);
+
+  const byToolMap = new Map();
+  const bySiteMap = new Map();
+  let grandTotal = 0;
+  const lineItems = rows.map((r) => {
+    const days = helpers.billableDays(r.time_out, r.time_in);
+    const charge = days * r.rate;
+    grandTotal += charge;
+    const tk = r.tool_id;
+    const tprev = byToolMap.get(tk) || { tool: r.tool, code: r.code, days: 0, charge: 0 };
+    tprev.days += days; tprev.charge += charge; byToolMap.set(tk, tprev);
+    const sk = r.site_id == null ? 'none' : r.site_id;
+    const sprev = bySiteMap.get(sk) || { site: r.site || 'No job site', days: 0, charge: 0 };
+    sprev.days += days; sprev.charge += charge; bySiteMap.set(sk, sprev);
+    return { ...r, days, charge };
+  });
+
+  return {
+    from, to, lineItems, grandTotal,
+    byTool: [...byToolMap.values()].sort((a, b) => b.charge - a.charge),
+    bySite: [...bySiteMap.values()].sort((a, b) => b.charge - a.charge),
+  };
+}
+
+router.get('/reports/billing', checkPermission('manager'), (req, res) => {
+  res.render('manager/report-billing', buildBilling(req.query.from, req.query.to));
+});
+
+router.get('/export/billing.csv', checkPermission('manager'), (req, res) => {
+  const { lineItems } = buildBilling(req.query.from, req.query.to);
+  sendCsv(res, 'billing.csv',
+    ['Tool', 'Code', 'Site', 'Person', 'Time out (UTC)', 'Time in (UTC)', 'Days', 'Rate/day', 'Charge'],
+    lineItems.map((r) => [
+      r.tool, r.code, r.site || 'No job site', r.employee,
+      r.time_out || '', r.time_in || '', r.days,
+      Number(r.rate).toFixed(2), Number(r.charge).toFixed(2),
+    ]));
+});
+
 // ===========================================================================
 // TOOLS
 // ===========================================================================
@@ -504,10 +562,10 @@ router.post('/tools', checkPermission('manager'), upload.single('photo'), upload
   const shortId = generateUniqueShortId();
   db.prepare(`
     INSERT INTO tools (short_id, name, description, serial_number, category,
-                       purchase_value, condition_notes, photo, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available')
+                       purchase_value, billable_rate, condition_notes, photo, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')
   `).run(shortId, data.name, data.description, data.serial_number, data.category,
-         data.purchase_value, data.condition_notes,
+         data.purchase_value, data.billable_rate, data.condition_notes,
          req.file ? req.file.filename : null);
   req.session.flash = { type: 'success', text: '✓ Tool added' };
   res.redirect('/manager/tools');
@@ -531,11 +589,11 @@ router.post('/tools/:id', checkPermission('manager'), upload.single('photo'), up
   }
   db.prepare(`
     UPDATE tools SET name = ?, description = ?, serial_number = ?, category = ?,
-           purchase_value = ?, condition_notes = ?,
+           purchase_value = ?, billable_rate = ?, condition_notes = ?,
            photo = COALESCE(?, photo)
     WHERE id = ?
   `).run(data.name, data.description, data.serial_number, data.category,
-         data.purchase_value, data.condition_notes,
+         data.purchase_value, data.billable_rate, data.condition_notes,
          req.file ? req.file.filename : null, tool.id);
   req.session.flash = { type: 'success', text: '✓ Saved' };
   res.redirect('/manager/tools');
@@ -631,12 +689,19 @@ function readToolForm(req) {
     if (Number.isNaN(v) || v < 0) return { error: 'Purchase value must be a number.' };
     purchase_value = v;
   }
+  let billable_rate = null;
+  if ((req.body.billable_rate || '').trim() !== '') {
+    const v = Number(req.body.billable_rate);
+    if (Number.isNaN(v) || v < 0) return { error: 'Billable rate must be a number.' };
+    billable_rate = v;
+  }
   return {
     name,
     description: (req.body.description || '').trim() || null,
     serial_number: (req.body.serial_number || '').trim() || null,
     category,
     purchase_value,
+    billable_rate,
     condition_notes: (req.body.condition_notes || '').trim() || null,
   };
 }

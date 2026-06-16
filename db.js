@@ -178,6 +178,17 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
+// Migration: tools gain an optional "billable_rate" — a per-DAY charge used by
+// the billing report (what to bill a job/client for using the tool).
+// ---------------------------------------------------------------------------
+(function ensureBillableRate() {
+  const cols = db.prepare('PRAGMA table_info(tools)').all();
+  if (!cols.some((c) => c.name === 'billable_rate')) {
+    db.exec('ALTER TABLE tools ADD COLUMN billable_rate REAL');
+  }
+})();
+
+// ---------------------------------------------------------------------------
 // Seed the default tool categories the first time the app runs.
 // ---------------------------------------------------------------------------
 (function seedCategories() {
