@@ -99,7 +99,7 @@
             <% if (b.beacon_label) { %><br><span class="muted small"><%= b.beacon_key %></span><% } %>
           </td>
           <td class="nowrap"><%= b.last_rssi %> dBm</td>
-          <td class="nowrap"><%= b.last_distance_m != null ? b.last_distance_m.toFixed(1) + ' m' : '—' %></td>
+          <td class="nowrap"><%= b.last_distance_m != null ? (b.last_distance_m >= 100 ? '>100 m' : b.last_distance_m.toFixed(1) + ' m') : '—' %></td>
           <td><span class="badge badge--<%= b.last_zone || 'unknown' %>"><%= b.last_zone || 'unknown' %></span></td>
           <td><%= b.scanner_name || b.scanner_key || '—' %><% if (b.site_name) { %><br><span class="muted small"><%= b.site_name %></span><% } %></td>
           <td class="nowrap"><%= h.durationSince(b.last_seen) %> ago</td>
