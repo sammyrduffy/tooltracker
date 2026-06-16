@@ -192,16 +192,16 @@ const { materialKey } = require('./lib/materials');
 // Seed the default tool categories the first time the app runs.
 // ---------------------------------------------------------------------------
 (function seedCategories() {
-  const { n } = db.prepare('SELECT COUNT(*) AS n FROM categories').get();
-  if (n > 0) return;
+  // INSERT OR IGNORE runs on every boot so the defaults always reach Turso,
+  // even if the table was empty after a fresh sync. Existing rows are untouched.
   const defaults = [
-    ['drill', 'Drill', '🪛', '#3b82f6'],
-    ['saw', 'Saw', '🪚', '#10b981'],
-    ['ladder', 'Ladder', '🪜', '#f59e0b'],
-    ['other', 'Other', '🧰', '#a1a1aa'],
+    ['drill', 'Drill', '🪛', '#3b82f6', 0],
+    ['saw', 'Saw', '🪚', '#10b981', 1],
+    ['ladder', 'Ladder', '🪜', '#f59e0b', 2],
+    ['other', 'Other', '🧰', '#a1a1aa', 3],
   ];
-  const insert = db.prepare('INSERT INTO categories (key, label, icon, color, sort_order) VALUES (?, ?, ?, ?, ?)');
-  defaults.forEach(([key, label, icon, color], i) => insert.run(key, label, icon, color, i));
+  const insert = db.prepare('INSERT OR IGNORE INTO categories (key, label, icon, color, sort_order) VALUES (?, ?, ?, ?, ?)');
+  for (const [key, label, icon, color, sort] of defaults) insert.run(key, label, icon, color, sort);
 })();
 
 // ---------------------------------------------------------------------------

@@ -682,7 +682,7 @@ function readToolForm(req) {
   if (!name) return { error: 'A tool name is required.' };
   const validCategories = categoryKeys();
   let category = (req.body.category || '').trim();
-  if (!validCategories.includes(category)) category = validCategories.includes('other') ? 'other' : validCategories[0];
+  if (!validCategories.includes(category)) category = validCategories.includes('other') ? 'other' : (validCategories[0] || 'other');
   let purchase_value = null;
   if ((req.body.purchase_value || '').trim() !== '') {
     const v = Number(req.body.purchase_value);
