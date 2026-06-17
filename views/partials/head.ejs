@@ -46,4 +46,10 @@
       </nav>
     <% } %>
   </header>
+  <% if (typeof overdueCount !== 'undefined' && overdueCount > 0) { %>
+    <div class="banner banner--warn container" style="margin-top:.75rem">
+      ⚠ <strong><%= overdueCount %> tool<%= overdueCount === 1 ? '' : 's' %></strong> overdue (out more than <%= overdueThreshold %> day<%= overdueThreshold === 1 ? '' : 's' %>) —
+      <a href="/manager/overdue" style="color:inherit;text-decoration:underline">View list</a>
+    </div>
+  <% } %>
   <main class="container">

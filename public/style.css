@@ -467,6 +467,9 @@ a.stat { color: inherit; } a.stat:active { background: var(--card-press); opacit
 .menu-card__text { display: flex; flex-direction: column; min-width: 0; }
 .menu-card__label { font-weight: 600; font-size: 1.02rem; }
 .menu-card__count { color: var(--muted); font-size: .85rem; font-weight: 500; }
+.menu-card--warn { background: var(--warn-tint); }
+.menu-card--warn .menu-card__label { color: var(--warn); }
+.menu-card--warn .menu-card__count { color: var(--warn); opacity: .8; }
 
 .site-group { padding: .35rem 1.1rem .65rem; }
 .site-group__head { margin: .6rem 0 .3rem; font-size: 1.05rem; }

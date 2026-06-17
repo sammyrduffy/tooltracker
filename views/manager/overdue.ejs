@@ -1,0 +1,39 @@
+<%- include('../partials/head', { title: 'Overdue tools' }) %>
+
+<div class="page-head">
+  <h1>Overdue tools</h1>
+  <a class="btn btn-ghost btn-sm" href="/manager/settings">Change threshold</a>
+</div>
+
+<p class="muted">Tools signed out for more than <strong><%= days %> day<%= days === 1 ? '' : 's' %></strong> without being checked back in.</p>
+
+<% if (items.length === 0) { %>
+  <div class="card card--center">
+    <p class="muted">No overdue tools right now.</p>
+  </div>
+<% } else { %>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Tool</th>
+        <th>Who has it</th>
+        <th>Site</th>
+        <th>Signed out</th>
+        <th>Days out</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% items.forEach(function(item) { %>
+        <tr>
+          <td><a href="/t/<%= item.short_id %>"><strong><%= item.tool_name %></strong></a></td>
+          <td><%= item.employee_name %></td>
+          <td><%= item.site_name || '—' %></td>
+          <td class="nowrap"><%= h.formatDateTime(item.time_out) %></td>
+          <td class="nowrap"><strong><%= h.daysSince(item.time_out) %></strong> days</td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+
+<%- include('../partials/foot') %>

@@ -99,11 +99,54 @@ router.post('/logout', (req, res) => {
 // Everything past this point requires login.
 router.use(requireManager);
 
+// Inject overdue count into every manager page so the banner and dashboard
+// card always reflect the current state without each route querying it.
+router.use((req, res, next) => {
+  const days = Math.max(1, Number(getSetting('overdue_days')) || 7);
+  const cutoff = new Date(Date.now() - days * 86400000)
+    .toISOString().replace('T', ' ').slice(0, 19);
+  res.locals.overdueThreshold = days;
+  res.locals.overdueCount = db.prepare(
+    "SELECT COUNT(*) AS n FROM checkouts WHERE time_in IS NULL AND time_out < ?"
+  ).get(cutoff).n;
+  next();
+});
+
+// ===========================================================================
+// OVERDUE
+// ===========================================================================
+router.get('/overdue', checkPermission('manager'), (req, res) => {
+  const days = res.locals.overdueThreshold;
+  const cutoff = new Date(Date.now() - days * 86400000)
+    .toISOString().replace('T', ' ').slice(0, 19);
+  const items = db.prepare(`
+    SELECT c.id, c.time_out, t.name AS tool_name, t.short_id,
+           e.name AS employee_name, s.name AS site_name
+    FROM checkouts c
+    JOIN tools    t ON t.id = c.tool_id
+    JOIN employees e ON e.id = c.employee_id
+    LEFT JOIN sites s ON s.id = c.site_id
+    WHERE c.time_in IS NULL AND c.time_out < ?
+    ORDER BY c.time_out ASC
+  `).all(cutoff);
+  res.render('manager/overdue', { items, days });
+});
+
 // ===========================================================================
 // SETTINGS — install instructions, profile, account, invite link
 // ===========================================================================
 router.get('/settings', (req, res) => {
-  res.render('manager/settings', { url: resolveBaseUrl(req) });
+  res.render('manager/settings', {
+    url: resolveBaseUrl(req),
+    overdueDays: Math.max(1, Number(getSetting('overdue_days')) || 7),
+  });
+});
+
+router.post('/settings/overdue', checkPermission('manager'), (req, res) => {
+  const days = Math.max(1, parseInt(req.body.overdue_days, 10) || 7);
+  setSetting('overdue_days', String(days));
+  req.session.flash = { type: 'success', text: `✓ Overdue threshold set to ${days} days` };
+  res.redirect('/manager/settings');
 });
 
 // --- Update your own display name --------------------------------------------
