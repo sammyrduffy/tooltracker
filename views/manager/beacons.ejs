@@ -138,4 +138,35 @@
   <p class="muted small"><%= beacons.length %> beacon<%= beacons.length === 1 ? '' : 's' %> seen.</p>
 <% } %>
 
+<!-- ===================== PRESENCE LOG ===================== -->
+<h2>Site presence log</h2>
+<p class="muted">One row per visit — starts when a paired beacon first arrives at a site, updates until it moves to a different gateway.</p>
+<% if (sessions.length === 0) { %>
+  <div class="card card--center"><p class="muted">No sessions recorded yet. Pair a beacon to a tool and assign its gateway to a site.</p></div>
+<% } else { %>
+  <table class="table table--oneline">
+    <thead>
+      <tr>
+        <th>Tool</th>
+        <th>Site</th>
+        <th>Arrived</th>
+        <th>Last seen</th>
+        <th>Duration</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% sessions.forEach(function(sess) { %>
+        <tr>
+          <td><strong><%= sess.tool_name || '—' %></strong></td>
+          <td><%= sess.site_name || '—' %></td>
+          <td class="nowrap"><%= h.formatDateTime(sess.first_seen) %></td>
+          <td class="nowrap"><%= h.formatDateTime(sess.last_seen) %></td>
+          <td class="nowrap muted"><%= h.durationSince(sess.first_seen, sess.last_seen) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <p class="muted small"><%= sessions.length %> session<%= sessions.length === 1 ? '' : 's' %> (most recent 300).</p>
+<% } %>
+
 <%- include('../partials/foot') %>

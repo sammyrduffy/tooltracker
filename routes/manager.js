@@ -1388,7 +1388,19 @@ router.get('/beacons', checkPermission('manager'), (req, res) => {
   const tools = db.prepare('SELECT id, name, short_id FROM tools ORDER BY name').all();
   const sites = db.prepare('SELECT id, name FROM sites WHERE active = 1 ORDER BY name').all();
 
-  res.render('manager/beacons', { beacons, locations, scanners, disabledScanners, tools, sites });
+  const sessions = db.prepare(`
+    SELECT bss.first_seen, bss.last_seen,
+           t.name AS tool_name, t.short_id AS tool_short_id,
+           s.name AS site_name
+    FROM beacon_site_sessions bss
+    LEFT JOIN tools   t ON t.id = bss.tool_id
+    LEFT JOIN sites   s ON s.id = bss.site_id
+    WHERE bss.tool_id IS NOT NULL
+    ORDER BY bss.first_seen DESC
+    LIMIT 300
+  `).all();
+
+  res.render('manager/beacons', { beacons, locations, scanners, disabledScanners, tools, sites, sessions });
 });
 
 router.post('/beacons/:beaconKey/pair', checkPermission('manager'), (req, res) => {
