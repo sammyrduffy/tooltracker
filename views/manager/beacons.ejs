@@ -32,15 +32,15 @@
   </ul>
 <% } %>
 
-<!-- ===================== SCANNERS ===================== -->
-<h2>Scanners</h2>
+<!-- ===================== GATEWAYS ===================== -->
+<h2>Gateways</h2>
 <% if (scanners.length === 0) { %>
-  <div class="card card--center"><p class="muted">No scanners have reported in yet.</p></div>
+  <div class="card card--center"><p class="muted">No gateways have reported in yet.</p></div>
 <% } else { %>
   <table class="table table--oneline">
     <thead>
       <tr>
-        <th>Scanner</th>
+        <th>Gateway key</th>
         <th>Name</th>
         <th>Site</th>
         <th>Last seen</th>
@@ -62,6 +62,12 @@
               </select>
               <span class="muted small"><%= sc.last_seen ? h.durationSince(sc.last_seen) + ' ago' : 'never' %></span>
               <button type="submit" class="btn btn-ghost btn-sm">Save</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="/manager/scanners/<%= sc.id %>/delete"
+                  onsubmit="return confirm('Remove gateway &quot;<%= sc.scanner_key %>&quot;? It will reappear if it posts again.');">
+              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
             </form>
           </td>
         </tr>

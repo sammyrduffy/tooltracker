@@ -1415,7 +1415,15 @@ router.post('/scanners/:id/site', checkPermission('manager'), (req, res) => {
   db.prepare('UPDATE scanners SET site_id = ?, name = ? WHERE id = ?').run(siteId, name, id);
   invalidateScannerCache(); // so the next sighting from this scanner uses the new site
 
-  req.session.flash = { type: 'success', text: '✓ Scanner updated' };
+  req.session.flash = { type: 'success', text: '✓ Gateway updated' };
+  res.redirect('/manager/beacons');
+});
+
+router.post('/scanners/:id/delete', checkPermission('manager'), (req, res) => {
+  const id = Number(req.params.id);
+  db.prepare('DELETE FROM scanners WHERE id = ?').run(id);
+  invalidateScannerCache();
+  req.session.flash = { type: 'success', text: '✓ Gateway removed' };
   res.redirect('/manager/beacons');
 });
 
