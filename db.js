@@ -188,13 +188,6 @@ const { materialKey } = require('./lib/materials');
   }
 })();
 
-(function ensureScannerActive() {
-  const cols = db.prepare('PRAGMA table_info(scanners)').all();
-  if (!cols.some((c) => c.name === 'active')) {
-    db.prepare('ALTER TABLE scanners ADD COLUMN active INTEGER NOT NULL DEFAULT 1').run();
-  }
-})();
-
 // ---------------------------------------------------------------------------
 // Migration: sites gain an optional "is_home" flag. Gateways at a home site
 // auto-check tools back in when their beacon is detected there.
