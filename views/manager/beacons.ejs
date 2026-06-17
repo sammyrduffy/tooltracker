@@ -65,15 +65,25 @@
             </form>
           </td>
           <td>
-            <form method="post" action="/manager/scanners/<%= sc.id %>/delete"
-                  onsubmit="return confirm('Remove gateway &quot;<%= sc.scanner_key %>&quot;? It will reappear if it posts again.');">
-              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            <form method="post" action="/manager/scanners/<%= sc.id %>/disable">
+              <button type="submit" class="btn btn-ghost btn-sm">Disable</button>
             </form>
           </td>
         </tr>
       <% }) %>
     </tbody>
   </table>
+  <% if (disabledScanners.length > 0) { %>
+    <p class="muted small" style="margin-top:.5rem">
+      <strong>Disabled:</strong>
+      <% disabledScanners.forEach(function(sc, i) { %>
+        <%= sc.scanner_key %><% if (sc.name) { %> (<%= sc.name %>)<% } %>
+        <form method="post" action="/manager/scanners/<%= sc.id %>/enable" style="display:inline">
+          <button type="submit" class="btn btn-ghost btn-sm">Enable</button>
+        </form><%= i < disabledScanners.length - 1 ? ' · ' : '' %>
+      <% }) %>
+    </p>
+  <% } %>
 <% } %>
 
 <!-- ===================== ALL SIGHTINGS / PAIRING ===================== -->

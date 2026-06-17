@@ -188,6 +188,13 @@ const { materialKey } = require('./lib/materials');
   }
 })();
 
+(function ensureScannerActive() {
+  const cols = db.prepare('PRAGMA table_info(scanners)').all();
+  if (!cols.some((c) => c.name === 'active')) {
+    db.prepare('ALTER TABLE scanners ADD COLUMN active INTEGER NOT NULL DEFAULT 1').run();
+  }
+})();
+
 // ---------------------------------------------------------------------------
 // Seed the default tool categories the first time the app runs.
 // ---------------------------------------------------------------------------

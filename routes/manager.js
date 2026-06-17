@@ -1375,17 +1375,19 @@ router.get('/beacons', checkPermission('manager'), (req, res) => {
 
   const locations = beacons.filter((b) => b.tool_id);
 
-  const scanners = db.prepare(`
-    SELECT sc.id, sc.scanner_key, sc.name, sc.kind, sc.site_id, sc.last_seen, s.name AS site_name
+  const allScanners = db.prepare(`
+    SELECT sc.id, sc.scanner_key, sc.name, sc.kind, sc.site_id, sc.last_seen, sc.active, s.name AS site_name
     FROM scanners sc
     LEFT JOIN sites s ON s.id = sc.site_id
     ORDER BY sc.last_seen DESC
   `).all();
+  const scanners = allScanners.filter(s => s.active !== 0);
+  const disabledScanners = allScanners.filter(s => s.active === 0);
 
   const tools = db.prepare('SELECT id, name, short_id FROM tools ORDER BY name').all();
   const sites = db.prepare('SELECT id, name FROM sites WHERE active = 1 ORDER BY name').all();
 
-  res.render('manager/beacons', { beacons, locations, scanners, tools, sites });
+  res.render('manager/beacons', { beacons, locations, scanners, disabledScanners, tools, sites });
 });
 
 router.post('/beacons/:beaconKey/pair', checkPermission('manager'), (req, res) => {
@@ -1419,11 +1421,17 @@ router.post('/scanners/:id/site', checkPermission('manager'), (req, res) => {
   res.redirect('/manager/beacons');
 });
 
-router.post('/scanners/:id/delete', checkPermission('manager'), (req, res) => {
-  const id = Number(req.params.id);
-  db.prepare('DELETE FROM scanners WHERE id = ?').run(id);
+router.post('/scanners/:id/disable', checkPermission('manager'), (req, res) => {
+  db.prepare('UPDATE scanners SET active = 0 WHERE id = ?').run(Number(req.params.id));
   invalidateScannerCache();
-  req.session.flash = { type: 'success', text: '✓ Gateway removed' };
+  req.session.flash = { type: 'success', text: '✓ Gateway disabled' };
+  res.redirect('/manager/beacons');
+});
+
+router.post('/scanners/:id/enable', checkPermission('manager'), (req, res) => {
+  db.prepare('UPDATE scanners SET active = 1 WHERE id = ?').run(Number(req.params.id));
+  invalidateScannerCache();
+  req.session.flash = { type: 'success', text: '✓ Gateway enabled' };
   res.redirect('/manager/beacons');
 });
 
