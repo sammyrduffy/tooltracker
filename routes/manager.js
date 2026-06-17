@@ -99,16 +99,32 @@ router.post('/logout', (req, res) => {
 // Everything past this point requires login.
 router.use(requireManager);
 
+// A tool is "overdue" when it is checked out (not at home base), has a paired
+// beacon, and that beacon hasn't been seen in the last 2 days.
+const OVERDUE_BEACON_DAYS = 2;
+
+function overdueCutoff() {
+  return new Date(Date.now() - OVERDUE_BEACON_DAYS * 86400000)
+    .toISOString().replace('T', ' ').slice(0, 19);
+}
+
 // Inject overdue count into every manager page so the banner and dashboard
 // card always reflect the current state without each route querying it.
 router.use((req, res, next) => {
-  const days = Math.max(1, Number(getSetting('overdue_days')) || 7);
-  const cutoff = new Date(Date.now() - days * 86400000)
-    .toISOString().replace('T', ' ').slice(0, 19);
-  res.locals.overdueThreshold = days;
-  res.locals.overdueCount = db.prepare(
-    "SELECT COUNT(*) AS n FROM checkouts WHERE time_in IS NULL AND time_out < ?"
-  ).get(cutoff).n;
+  const cutoff = overdueCutoff();
+  res.locals.overdueCount = db.prepare(`
+    SELECT COUNT(*) AS n FROM (
+      SELECT c.id
+      FROM checkouts c
+      JOIN beacons       bk ON bk.tool_id  = c.tool_id
+      JOIN beacon_state  bs ON bs.beacon_id = bk.id
+      LEFT JOIN sites     s ON s.id = c.site_id
+      WHERE c.time_in IS NULL
+        AND (s.is_home IS NULL OR s.is_home = 0)
+      GROUP BY c.id
+      HAVING MAX(bs.last_seen) < ?
+    )
+  `).get(cutoff).n;
   next();
 });
 
@@ -116,37 +132,31 @@ router.use((req, res, next) => {
 // OVERDUE
 // ===========================================================================
 router.get('/overdue', checkPermission('manager'), (req, res) => {
-  const days = res.locals.overdueThreshold;
-  const cutoff = new Date(Date.now() - days * 86400000)
-    .toISOString().replace('T', ' ').slice(0, 19);
+  const cutoff = overdueCutoff();
   const items = db.prepare(`
-    SELECT c.id, c.time_out, t.name AS tool_name, t.short_id,
-           e.name AS employee_name, s.name AS site_name
+    SELECT c.time_out, t.name AS tool_name, t.short_id,
+           e.name AS employee_name, s.name AS site_name,
+           MAX(bs.last_seen) AS beacon_last_seen
     FROM checkouts c
-    JOIN tools    t ON t.id = c.tool_id
-    JOIN employees e ON e.id = c.employee_id
-    LEFT JOIN sites s ON s.id = c.site_id
-    WHERE c.time_in IS NULL AND c.time_out < ?
-    ORDER BY c.time_out ASC
+    JOIN tools      t  ON t.id  = c.tool_id
+    JOIN employees  e  ON e.id  = c.employee_id
+    LEFT JOIN sites s  ON s.id  = c.site_id
+    JOIN beacons    bk ON bk.tool_id  = c.tool_id
+    JOIN beacon_state bs ON bs.beacon_id = bk.id
+    WHERE c.time_in IS NULL
+      AND (s.is_home IS NULL OR s.is_home = 0)
+    GROUP BY c.id
+    HAVING MAX(bs.last_seen) < ?
+    ORDER BY MAX(bs.last_seen) ASC
   `).all(cutoff);
-  res.render('manager/overdue', { items, days });
+  res.render('manager/overdue', { items });
 });
 
 // ===========================================================================
 // SETTINGS — install instructions, profile, account, invite link
 // ===========================================================================
 router.get('/settings', (req, res) => {
-  res.render('manager/settings', {
-    url: resolveBaseUrl(req),
-    overdueDays: Math.max(1, Number(getSetting('overdue_days')) || 7),
-  });
-});
-
-router.post('/settings/overdue', checkPermission('manager'), (req, res) => {
-  const days = Math.max(1, parseInt(req.body.overdue_days, 10) || 7);
-  setSetting('overdue_days', String(days));
-  req.session.flash = { type: 'success', text: `✓ Overdue threshold set to ${days} days` };
-  res.redirect('/manager/settings');
+  res.render('manager/settings', { url: resolveBaseUrl(req) });
 });
 
 // --- Update your own display name --------------------------------------------

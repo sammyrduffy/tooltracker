@@ -1,11 +1,8 @@
 <%- include('../partials/head', { title: 'Overdue tools' }) %>
 
-<div class="page-head">
-  <h1>Overdue tools</h1>
-  <a class="btn btn-ghost btn-sm" href="/manager/settings">Change threshold</a>
-</div>
+<h1>Overdue tools</h1>
 
-<p class="muted">Tools signed out for more than <strong><%= days %> day<%= days === 1 ? '' : 's' %></strong> without being checked back in.</p>
+<p class="muted">Checked-out tools (not at home base) whose beacon hasn't been detected in the last 2 days.</p>
 
 <% if (items.length === 0) { %>
   <div class="card card--center">
@@ -18,8 +15,7 @@
         <th>Tool</th>
         <th>Who has it</th>
         <th>Site</th>
-        <th>Signed out</th>
-        <th>Days out</th>
+        <th>Beacon last seen</th>
       </tr>
     </thead>
     <tbody>
@@ -28,8 +24,7 @@
           <td><a href="/t/<%= item.short_id %>"><strong><%= item.tool_name %></strong></a></td>
           <td><%= item.employee_name %></td>
           <td><%= item.site_name || '—' %></td>
-          <td class="nowrap"><%= h.formatDateTime(item.time_out) %></td>
-          <td class="nowrap"><strong><%= h.daysSince(item.time_out) %></strong> days</td>
+          <td class="nowrap"><%= h.formatDateTime(item.beacon_last_seen) %> <span class="muted">(<%= h.durationSince(item.beacon_last_seen) %> ago)</span></td>
         </tr>
       <% }) %>
     </tbody>

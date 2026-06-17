@@ -70,7 +70,7 @@
       <h3 class="site-group__head">📍 <%= group.site %> <span class="muted">· <%= group.items.length %> tool<%= group.items.length === 1 ? '' : 's' %></span></h3>
       <ul class="out-list">
         <% group.items.forEach(function(item) { %>
-          <% const days = h.daysSince(item.time_out); const overdue = days > overdueThreshold; %>
+          <% const days = h.daysSince(item.time_out); const overdue = days > 7; %>
           <li class="out-item <%= overdue ? 'out-item--overdue' : '' %>">
             <div class="out-item__main">
               <a href="/t/<%= item.short_id %>"><strong><%= item.tool_name %></strong></a>
@@ -85,7 +85,7 @@
       </ul>
     </div>
   <% }) %>
-  <p class="muted small">⚠ = out more than <%= overdueThreshold %> day<%= overdueThreshold === 1 ? '' : 's' %>.</p>
+  <p class="muted small">⚠ = out more than 7 days.</p>
 <% } %>
 
 <!-- ===================== STATS ===================== -->
