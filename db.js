@@ -212,6 +212,22 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
+// Seed the "Gateway (Auto)" system employee used for BLE auto-checkouts.
+// active=0 keeps it out of the employee picker on the sign-out page.
+// The pin_hash has no ':' so verifyPin() always returns false — this account
+// can never be used for manual sign-in.
+// ---------------------------------------------------------------------------
+(function ensureGatewayAutoEmployee() {
+  const existing = db.prepare("SELECT id FROM employees WHERE name = 'Gateway (Auto)'").get();
+  if (!existing) {
+    db.prepare(
+      "INSERT INTO employees (name, pin_hash, role, active) VALUES ('Gateway (Auto)', 'gateway-auto-nologin', 'employee', 0)"
+    ).run();
+    console.log("  ↳ Created 'Gateway (Auto)' system employee for BLE auto-checkouts");
+  }
+})();
+
+// ---------------------------------------------------------------------------
 // PIN security helpers.
 // We never store the actual PIN. We store a one-way "hash" of it (using Node's
 // built-in scrypt). To check a PIN we hash the entered value and compare.
