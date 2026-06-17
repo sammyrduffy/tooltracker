@@ -4,6 +4,7 @@
   const name = site && site.name ? site.name : '';
   const address = site && site.address ? site.address : '';
   const active = site ? (String(site.active) !== '0') : true;
+  const isHome = site ? (String(site.is_home) === '1') : false;
 %>
 <%- include('../partials/head', { title: isEdit ? 'Edit site' : 'Add site' }) %>
 
@@ -29,6 +30,10 @@
       <option value="1" <%= active ? 'selected' : '' %>>Active</option>
       <option value="0" <%= !active ? 'selected' : '' %>>Inactive</option>
     </select>
+  </label>
+  <label class="label--checkbox">
+    <input type="checkbox" name="is_home" value="1" <%= isHome ? 'checked' : '' %>>
+    Office / home base — tools detected here by a gateway are automatically checked back in
   </label>
   <div class="form-actions">
     <button type="submit" class="btn btn-big"><%= isEdit ? 'Save changes' : 'Add site' %></button>

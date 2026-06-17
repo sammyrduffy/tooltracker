@@ -1219,8 +1219,8 @@ router.post('/sites', checkPermission('manager'), upload.single('photo'), upload
   if (data.error) {
     return res.status(400).render('manager/site-form', { site: req.body, error: data.error });
   }
-  db.prepare('INSERT INTO sites (name, address, active, photo) VALUES (?, ?, ?, ?)')
-    .run(data.name, data.address, data.active, req.file ? req.file.filename : null);
+  db.prepare('INSERT INTO sites (name, address, active, is_home, photo) VALUES (?, ?, ?, ?, ?)')
+    .run(data.name, data.address, data.active, data.is_home, req.file ? req.file.filename : null);
   res.redirect('/manager/sites');
 });
 
@@ -1239,8 +1239,8 @@ router.post('/sites/:id', checkPermission('manager'), upload.single('photo'), up
       site: { ...site, ...req.body }, error: data.error,
     });
   }
-  db.prepare('UPDATE sites SET name = ?, address = ?, active = ?, photo = COALESCE(?, photo) WHERE id = ?')
-    .run(data.name, data.address, data.active, req.file ? req.file.filename : null, site.id);
+  db.prepare('UPDATE sites SET name = ?, address = ?, active = ?, is_home = ?, photo = COALESCE(?, photo) WHERE id = ?')
+    .run(data.name, data.address, data.active, data.is_home, req.file ? req.file.filename : null, site.id);
   res.redirect('/manager/sites');
 });
 
@@ -1264,7 +1264,8 @@ function readSiteForm(req) {
   if (!name) return { error: 'A site name is required.' };
   const address = (req.body.address || '').trim() || null;
   const active = req.body.active === '0' ? 0 : 1;
-  return { name, address, active };
+  const is_home = req.body.is_home === '1' ? 1 : 0;
+  return { name, address, active, is_home };
 }
 
 // --- Tool categories ---------------------------------------------------------

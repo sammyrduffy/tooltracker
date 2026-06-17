@@ -196,6 +196,17 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
+// Migration: sites gain an optional "is_home" flag. Gateways at a home site
+// auto-check tools back in when their beacon is detected there.
+// ---------------------------------------------------------------------------
+(function ensureSiteIsHome() {
+  const cols = db.prepare('PRAGMA table_info(sites)').all();
+  if (!cols.some((c) => c.name === 'is_home')) {
+    db.prepare('ALTER TABLE sites ADD COLUMN is_home INTEGER NOT NULL DEFAULT 0').run();
+  }
+})();
+
+// ---------------------------------------------------------------------------
 // Seed the default tool categories the first time the app runs.
 // ---------------------------------------------------------------------------
 (function seedCategories() {
