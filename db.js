@@ -286,7 +286,7 @@ function transaction(fn) {
     db.exec('COMMIT');
     return result;
   } catch (err) {
-    db.exec('ROLLBACK');
+    try { db.exec('ROLLBACK'); } catch (_) {}
     throw err;
   }
 }
