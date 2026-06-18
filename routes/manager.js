@@ -592,7 +592,7 @@ router.post('/tools/:id/status', checkPermission('manager'), (req, res) => {
   res.redirect(back && back.startsWith('/manager') ? back : '/manager/tools');
 });
 
-router.get('/tools/new', checkPermission('manager'), (req, res) => {
+router.get('/tools/new', checkPermission('manager', 'field_user'), (req, res) => {
   res.render('manager/tool-form', { tool: null, categories: categoryKeys(), error: null, openIssue: null });
 });
 
@@ -605,7 +605,7 @@ const getOpenIssue = db.prepare(`
   ORDER BY i.id DESC LIMIT 1
 `);
 
-router.post('/tools', checkPermission('manager'), upload.single('photo'), uploadToCloud, (req, res) => {
+router.post('/tools', checkPermission('manager', 'field_user'), upload.single('photo'), uploadToCloud, (req, res) => {
   const data = readToolForm(req);
   if (data.error) {
     return res.status(400).render('manager/tool-form', {

@@ -2,15 +2,15 @@
 
 <div class="page-head">
   <h1>Tools</h1>
-  <% if (manager.role === 'manager') { %>
   <div class="form-actions">
+    <% if (manager.role === 'manager') { %>
     <button type="button" id="selectToggle" class="btn btn-ghost">Select</button>
     <button type="button" id="moveToggle" class="btn btn-ghost">Move Multiple</button>
     <a class="btn btn-ghost" href="/manager/categories">Categories</a>
     <a class="btn btn-ghost" href="/manager/tools/import">⬆ Import CSV</a>
+    <% } %>
     <a class="btn" href="/manager/tools/new">+ Add tool</a>
   </div>
-  <% } %>
 </div>
 
 <!-- Search + filter -->

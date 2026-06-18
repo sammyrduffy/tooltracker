@@ -4,7 +4,9 @@
   const v = (k) => (tool && tool[k] != null ? tool[k] : '');
   const status = (tool && tool.status) ? tool.status : 'available';
   const category = (tool && tool.category) ? tool.category : 'other';
-  const canEdit = manager.role === 'manager';
+  // Managers can always edit. Field users can fill in the add form but not edit existing tools.
+  const canEdit = manager.role === 'manager' || !isEdit;
+  const isManager = manager.role === 'manager';
   const ro = canEdit ? '' : 'disabled';
 %>
 <%- include('../partials/head', { title: isEdit ? (canEdit ? 'Edit tool' : 'Tool details') : 'Add tool' }) %>
@@ -39,7 +41,7 @@
     </label>
   </div>
 
-  <% if (canEdit) { %>
+  <% if (isManager) { %>
   <label>Billable rate ($ per day)
     <input type="number" name="billable_rate" step="0.01" min="0" value="<%= v('billable_rate') %>">
     <span class="muted small">Optional. What a job/client is charged per day this tool is signed out. Used in the Billing report.</span>
