@@ -44,7 +44,7 @@ if (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN) {
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
   db.sync();                                 // pull the latest data on startup
-  setInterval(() => { try { db.sync(); } catch (_) {} }, 60 * 1000); // keep fresh
+  setInterval(() => { try { db.sync(); } catch (_) {} }, 5 * 60 * 1000); // keep fresh (5 min)
 } else if (process.env.USE_LIBSQL) {
   const Database = require('libsql');
   db = new Database(DB_FILE);
