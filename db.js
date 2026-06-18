@@ -202,46 +202,42 @@ const { materialKey } = require('./lib/materials');
 // ---------------------------------------------------------------------------
 // Fix: categories.key is UNIQUE locally but the constraint was never pushed to
 // Turso (db.exec is local-only on libsql), so duplicates can creep in via:
-//   a) a broken earlier migration that left all rows sharing one key
-//   b) the seed re-inserting default rows on every boot (no constraint = no
-//      "OR IGNORE" effect in Turso), or
-//   c) a manager adding the same category name more than once.
+//   a) a broken earlier migration that left all rows sharing one wrong key
+//      (e.g. all 17 categories ended up with key='hand_tools')
+//   b) the seed re-inserting default rows on every boot
+//   c) a manager adding the same category name more than once
 //
-// Strategy: group by the CORRECT key (derived from each row's label). Within
-// each group keep the lowest id (oldest = most authoritative) and delete the
-// rest. Then fix any surviving rows whose current key differs from the correct
-// one. Finally, remap any tools whose category no longer exists to 'other'.
+// Single-pass algorithm (rows processed in id order — lowest id = oldest):
+//   • Compute each row's correct key from its label.
+//   • If that correct key hasn't been claimed yet: assign it (update if the
+//     row's current key is wrong) and mark it claimed.
+//   • If that correct key is already claimed: this is a duplicate — delete it.
+// This handles all three cases above without needing to group by anything.
 // ---------------------------------------------------------------------------
 (function fixCategoryKeys() {
   function toKey(label) {
     return String(label || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   }
   const rows = db.prepare('SELECT id, key, label FROM categories ORDER BY id').all();
-  // Group by the correct key each row *should* have.
-  const byCorrect = new Map();
-  for (const r of rows) {
-    const ck = toKey(r.label);
-    if (!byCorrect.has(ck)) byCorrect.set(ck, []);
-    byCorrect.get(ck).push(r);
-  }
+  const claimed = new Set();
   let changed = false;
-  for (const [correctKey, group] of byCorrect) {
-    // Keep first (lowest id), delete all others (true duplicates or wrong-key copies).
-    for (let i = 1; i < group.length; i++) {
-      db.prepare('DELETE FROM categories WHERE id = ?').run(group[i].id);
+  for (const row of rows) {
+    const correct = toKey(row.label);
+    if (claimed.has(correct)) {
+      // A surviving row already owns this correct key — this row is a duplicate.
+      db.prepare('DELETE FROM categories WHERE id = ?').run(row.id);
       changed = true;
-    }
-    // Fix the surviving row's key if it's wrong.
-    const keeper = group[0];
-    if (keeper.key !== correctKey) {
-      db.prepare('UPDATE categories SET key = ? WHERE id = ?').run(correctKey, keeper.id);
-      changed = true;
+    } else {
+      claimed.add(correct);
+      if (row.key !== correct) {
+        db.prepare('UPDATE categories SET key = ? WHERE id = ?').run(correct, row.id);
+        changed = true;
+      }
     }
   }
   if (changed) {
-    // Re-point tools whose category key no longer exists after the cleanup.
-    // We can't reliably reverse-map old shared keys to specific labels, so
-    // fall back to 'other' for any orphaned tool.
+    // Remap any tools whose stored category no longer has a matching row.
+    // (Happens when all rows shared a wrong key and tools were saved under it.)
     db.prepare(
       "UPDATE tools SET category = 'other' WHERE category NOT IN (SELECT key FROM categories)"
     ).run();
