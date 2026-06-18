@@ -41,6 +41,11 @@
     </label>
   </div>
 
+  <label>Quantity owned
+    <input type="number" name="quantity" min="1" step="1" value="<%= v('quantity') || 1 %>" <%= ro %>>
+    <span class="muted small">Set to more than 1 for bulk items (e.g. 20 scaffold frames). Field crews can then check out and return multiple units at once.</span>
+  </label>
+
   <% if (isManager) { %>
   <label>Billable rate ($ per day)
     <input type="number" name="billable_rate" step="0.01" min="0" value="<%= v('billable_rate') %>">

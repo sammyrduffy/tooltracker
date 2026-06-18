@@ -478,7 +478,8 @@ router.get('/tools', (req, res) => {
 
   const sql = `SELECT t.*,
       (SELECT s.name FROM checkouts c LEFT JOIN sites s ON s.id = c.site_id
-       WHERE c.tool_id = t.id AND c.time_in IS NULL ORDER BY c.id DESC LIMIT 1) AS out_site
+       WHERE c.tool_id = t.id AND c.time_in IS NULL ORDER BY c.id DESC LIMIT 1) AS out_site,
+      (SELECT COALESCE(SUM(c.quantity),0) FROM checkouts c WHERE c.tool_id = t.id AND c.time_in IS NULL) AS checked_out_qty
     FROM tools t`
     + (where.length ? ' WHERE ' + where.join(' AND ') : '')
     + ' ORDER BY t.name';
@@ -615,10 +616,10 @@ router.post('/tools', checkPermission('manager', 'field_user'), upload.single('p
   const shortId = generateUniqueShortId();
   db.prepare(`
     INSERT INTO tools (short_id, name, description, serial_number, category,
-                       purchase_value, billable_rate, condition_notes, photo, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')
+                       purchase_value, billable_rate, quantity, condition_notes, photo, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')
   `).run(shortId, data.name, data.description, data.serial_number, data.category,
-         data.purchase_value, data.billable_rate, data.condition_notes,
+         data.purchase_value, data.billable_rate, data.quantity, data.condition_notes,
          req.file ? req.file.filename : null);
   req.session.flash = { type: 'success', text: '✓ Tool added' };
   res.redirect('/manager/tools');
@@ -642,11 +643,11 @@ router.post('/tools/:id', checkPermission('manager'), upload.single('photo'), up
   }
   db.prepare(`
     UPDATE tools SET name = ?, description = ?, serial_number = ?, category = ?,
-           purchase_value = ?, billable_rate = ?, condition_notes = ?,
+           purchase_value = ?, billable_rate = ?, quantity = ?, condition_notes = ?,
            photo = COALESCE(?, photo)
     WHERE id = ?
   `).run(data.name, data.description, data.serial_number, data.category,
-         data.purchase_value, data.billable_rate, data.condition_notes,
+         data.purchase_value, data.billable_rate, data.quantity, data.condition_notes,
          req.file ? req.file.filename : null, tool.id);
   req.session.flash = { type: 'success', text: '✓ Saved' };
   res.redirect('/manager/tools');
@@ -748,6 +749,12 @@ function readToolForm(req) {
     if (Number.isNaN(v) || v < 0) return { error: 'Billable rate must be a number.' };
     billable_rate = v;
   }
+  let quantity = 1;
+  if ((req.body.quantity || '').trim() !== '') {
+    const v = parseInt(req.body.quantity, 10);
+    if (Number.isNaN(v) || v < 1) return { error: 'Quantity must be a whole number of at least 1.' };
+    quantity = v;
+  }
   return {
     name,
     description: (req.body.description || '').trim() || null,
@@ -755,6 +762,7 @@ function readToolForm(req) {
     category,
     purchase_value,
     billable_rate,
+    quantity,
     condition_notes: (req.body.condition_notes || '').trim() || null,
   };
 }
@@ -789,12 +797,14 @@ router.get('/labels', checkPermission('manager'), (req, res) => {
   for (let i = 0; i < cells.length; i += perPage) pages.push(cells.slice(i, i + perPage));
   if (pages.length === 0) pages.push([]);
 
+  const allTools = db.prepare('SELECT id, name, category FROM tools ORDER BY name').all();
   res.render('manager/labels', {
     sheets: LABEL_SHEETS, sheetKey, spec,
     categories: categoryKeys(), category,
     skip, tools, pages,
     baseUrl: resolveBaseUrl(req),
     idsParam: String(req.query.ids || ''),
+    allTools,
   });
 });
 

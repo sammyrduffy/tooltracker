@@ -12,7 +12,7 @@
 
   // Fresh state each time a flow is opened.
   let state = {};
-  function resetState() { state = { employeeId: '', employeeName: '', pin: '', siteId: '', siteName: '' }; }
+  function resetState() { state = { employeeId: '', employeeName: '', pin: '', siteId: '', siteName: '', qty: 1 }; }
 
   // --- Open a flow when its big button is tapped ----------------------------
   document.querySelectorAll('[data-open-flow]').forEach((btn) => {
@@ -27,6 +27,8 @@
     form.querySelector('[name="pin"]').value = '';
     const siteInput = form.querySelector('[name="site_id"]');
     if (siteInput) siteInput.value = '';
+    const qtyInput = form.querySelector('[name="quantity"]');
+    if (qtyInput) { qtyInput.value = '1'; }
     if (toolPage) toolPage.hidden = true;
     form.hidden = false;
     goToStep(form, 0);
@@ -50,6 +52,7 @@
     if (!current) return;
     const kind = current.getAttribute('data-step');
     if (kind === 'pin') resetPin(form);
+    if (kind === 'qty') initQty(form);
     if (kind === 'confirm') fillSummary(form);
     // Re-trigger the slide-in animation each time this step is shown.
     current.classList.remove('step-in');
@@ -95,6 +98,20 @@
         nextStep(form);
       }));
 
+    // Quantity stepper (bulk sign-out only).
+    form.querySelectorAll('[data-qty-up]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const section = form.querySelector('[data-step="qty"]');
+        const max = section ? (parseInt(section.getAttribute('data-max-qty'), 10) || 1) : 1;
+        state.qty = Math.min((state.qty || 1) + 1, max);
+        updateQtyDisplay(form);
+      }));
+    form.querySelectorAll('[data-qty-down]').forEach((b) =>
+      b.addEventListener('click', () => {
+        state.qty = Math.max((state.qty || 1) - 1, 1);
+        updateQtyDisplay(form);
+      }));
+
     // PIN keypad.
     form.querySelectorAll('[data-key]').forEach((b) =>
       b.addEventListener('click', () => handleKey(form, b.getAttribute('data-key'))));
@@ -105,6 +122,18 @@
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Working…'; }
     });
   });
+
+  // --- Qty stepper ----------------------------------------------------------
+  function initQty(form) {
+    state.qty = 1;
+    updateQtyDisplay(form);
+  }
+  function updateQtyDisplay(form) {
+    const display = form.querySelector('[data-qty-display]');
+    if (display) display.textContent = state.qty;
+    const input = form.querySelector('[name="quantity"]');
+    if (input) input.value = state.qty;
+  }
 
   // --- PIN entry ------------------------------------------------------------
   function resetPin(form) {
@@ -138,9 +167,11 @@
     if (!el) return;
     const flow = form.getAttribute('data-flow');
     if (flow === 'signout') {
+      const qty = state.qty || 1;
+      const item = qty > 1 ? `${qty}× "${toolName}"` : `"${toolName}"`;
       el.textContent = state.siteName
-        ? `Sign out "${toolName}" to ${state.employeeName} for ${state.siteName}.`
-        : `Sign out "${toolName}" to ${state.employeeName} (no job site).`;
+        ? `Sign out ${item} to ${state.employeeName} for ${state.siteName}.`
+        : `Sign out ${item} to ${state.employeeName} (no job site).`;
     } else if (flow === 'report') {
       el.textContent = `Flag "${toolName}" as needing repair — reported by ${state.employeeName}.`;
     } else {

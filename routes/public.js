@@ -30,6 +30,23 @@ const getOpenCheckout = db.prepare(`
   WHERE c.tool_id = ? AND c.time_in IS NULL
   ORDER BY c.id DESC LIMIT 1
 `);
+// Returns ALL open checkouts for a tool (used for bulk tools with multiple holders).
+const getOpenCheckouts = db.prepare(`
+  SELECT c.*, e.name AS employee_name, s.name AS site_name
+  FROM checkouts c
+  JOIN employees e ON e.id = c.employee_id
+  LEFT JOIN sites s ON s.id = c.site_id
+  WHERE c.tool_id = ? AND c.time_in IS NULL
+  ORDER BY c.time_out DESC
+`);
+// Total units currently checked out for a bulk tool.
+const getCheckedOutQty = db.prepare(
+  "SELECT COALESCE(SUM(quantity),0) AS n FROM checkouts WHERE tool_id = ? AND time_in IS NULL"
+);
+// Finds a specific employee's open checkout for a bulk tool (used on check-in).
+const getEmployeeCheckout = db.prepare(
+  'SELECT * FROM checkouts WHERE tool_id = ? AND employee_id = ? AND time_in IS NULL ORDER BY id DESC LIMIT 1'
+);
 const getActiveEmployees = db.prepare(
   'SELECT id, name, pin_hash FROM employees WHERE active = 1 ORDER BY name'
 );
@@ -44,14 +61,31 @@ const getOpenIssueByTool = db.prepare(`
   ORDER BY i.id DESC LIMIT 1
 `);
 
-// Loads the tool + its current holder (if any) and the picker lists.
+// Loads the tool + its current holder(s) and the picker lists.
 function loadToolContext(shortId) {
   const tool = getToolByShortId.get(shortId);
   if (!tool) return null;
-  const openCheckout = tool.status === 'signed_out' ? getOpenCheckout.get(tool.id) : null;
+
+  let checkedOut = 0;
+  let openCheckouts = [];
+
+  if (tool.quantity > 1) {
+    // Bulk tool: compute how many units are currently out and who has them.
+    checkedOut = getCheckedOutQty.get(tool.id).n;
+    tool.available_qty = tool.quantity - checkedOut;
+    if (checkedOut > 0) openCheckouts = getOpenCheckouts.all(tool.id);
+  }
+
+  // Single-item: existing behaviour. Bulk: first holder (or null) for backward-compat.
+  const openCheckout = tool.quantity === 1 && tool.status === 'signed_out'
+    ? getOpenCheckout.get(tool.id)
+    : (openCheckouts[0] || null);
+
   return {
     tool,
     openCheckout,
+    openCheckouts,
+    checkedOut,
     openIssue: tool.status === 'needs_repair' ? (getOpenIssueByTool.get(tool.id) || null) : null,
     homeLocation: homeLocation(),
     employees: getActiveEmployees.all().map((e) => ({ id: e.id, name: e.name })),
@@ -134,7 +168,15 @@ router.post('/t/:shortId/signout', (req, res) => {
   const tool = getToolByShortId.get(shortId);
   if (!tool) return showToolError(res, shortId, 'That tool no longer exists.');
 
-  if (tool.status !== 'available') {
+  // For bulk tools check available units; for single items check status.
+  let availableQty = 1;
+  if (tool.quantity > 1) {
+    const checkedOut = getCheckedOutQty.get(tool.id).n;
+    availableQty = tool.quantity - checkedOut;
+    if (availableQty <= 0) {
+      return showToolError(res, shortId, 'All units of this tool are currently signed out.');
+    }
+  } else if (tool.status !== 'available') {
     return showToolError(res, shortId,
       `This tool can't be signed out right now (status: ${tool.status.replace('_', ' ')}).`);
   }
@@ -156,15 +198,29 @@ router.post('/t/:shortId/signout', (req, res) => {
     siteId = site.id;
   }
 
-  // Record the checkout and flip the tool's status — done as one atomic step.
+  // For bulk tools, read the requested quantity and clamp to what's available.
+  const qty = tool.quantity > 1
+    ? Math.max(1, Math.min(parseInt(req.body.quantity, 10) || 1, availableQty))
+    : 1;
+
+  // Record the checkout and update the tool's status — done as one atomic step.
   transaction(() => {
     db.prepare(
-      'INSERT INTO checkouts (tool_id, employee_id, site_id) VALUES (?, ?, ?)'
-    ).run(tool.id, employee.id, siteId);
-    db.prepare("UPDATE tools SET status = 'signed_out' WHERE id = ?").run(tool.id);
+      'INSERT INTO checkouts (tool_id, employee_id, site_id, quantity) VALUES (?, ?, ?, ?)'
+    ).run(tool.id, employee.id, siteId, qty);
+
+    if (tool.quantity > 1) {
+      // All units out → signed_out; still some free → keep available.
+      const newAvail = availableQty - qty;
+      db.prepare('UPDATE tools SET status = ? WHERE id = ?')
+        .run(newAvail <= 0 ? 'signed_out' : 'available', tool.id);
+    } else {
+      db.prepare("UPDATE tools SET status = 'signed_out' WHERE id = ?").run(tool.id);
+    }
   });
 
-  req.session.flash = { type: 'success', text: `✓ Signed out — ${tool.name} to ${employee.name}` };
+  const qtyLabel = qty > 1 ? ` ×${qty}` : '';
+  req.session.flash = { type: 'success', text: `✓ Signed out — ${tool.name}${qtyLabel} to ${employee.name}` };
   res.redirect(`/t/${shortId}`);
 });
 
@@ -174,10 +230,6 @@ router.post('/t/:shortId/checkin', (req, res) => {
   const tool = getToolByShortId.get(shortId);
   if (!tool) return showToolError(res, shortId, 'That tool no longer exists.');
 
-  if (tool.status !== 'signed_out') {
-    return showToolError(res, shortId, 'This tool is not currently signed out.');
-  }
-
   const employee = db.prepare('SELECT * FROM employees WHERE id = ? AND active = 1')
     .get(Number(req.body.employee_id));
   if (!employee) return showToolError(res, shortId, 'Please choose your name and try again.');
@@ -185,15 +237,37 @@ router.post('/t/:shortId/checkin', (req, res) => {
     return showToolError(res, shortId, 'That PIN was not correct. Please try again.');
   }
 
-  const open = getOpenCheckout.get(tool.id);
-  transaction(() => {
-    if (open) {
-      db.prepare("UPDATE checkouts SET time_in = datetime('now') WHERE id = ?").run(open.id);
+  if (tool.quantity > 1) {
+    // Bulk tool: find this employee's specific open checkout.
+    const empCheckout = getEmployeeCheckout.get(tool.id, employee.id);
+    if (!empCheckout) {
+      return showToolError(res, shortId, `${employee.name} doesn't have any ${tool.name} checked out.`);
     }
-    db.prepare("UPDATE tools SET status = 'available' WHERE id = ?").run(tool.id);
-  });
+    transaction(() => {
+      db.prepare("UPDATE checkouts SET time_in = datetime('now') WHERE id = ?").run(empCheckout.id);
+      // Recalculate status: if any units still out, keep signed_out.
+      const stillOut = getCheckedOutQty.get(tool.id).n;
+      db.prepare('UPDATE tools SET status = ? WHERE id = ?')
+        .run(stillOut > 0 ? 'signed_out' : 'available', tool.id);
+    });
+    const qty = empCheckout.quantity;
+    const label = qty > 1 ? `${qty} ${tool.name}s` : tool.name;
+    req.session.flash = { type: 'success', text: `✓ Checked in — ${label} returned` };
+  } else {
+    // Single item: existing behaviour.
+    if (tool.status !== 'signed_out') {
+      return showToolError(res, shortId, 'This tool is not currently signed out.');
+    }
+    const open = getOpenCheckout.get(tool.id);
+    transaction(() => {
+      if (open) {
+        db.prepare("UPDATE checkouts SET time_in = datetime('now') WHERE id = ?").run(open.id);
+      }
+      db.prepare("UPDATE tools SET status = 'available' WHERE id = ?").run(tool.id);
+    });
+    req.session.flash = { type: 'success', text: `✓ Checked in — ${tool.name} is back at the ${homeLocation()}` };
+  }
 
-  req.session.flash = { type: 'success', text: `✓ Checked in — ${tool.name} is back at the ${homeLocation()}` };
   res.redirect(`/t/${shortId}`);
 });
 

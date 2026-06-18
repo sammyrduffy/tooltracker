@@ -40,6 +40,11 @@
 %>
 
 <%
+  // Build a set of currently-selected tool IDs so the picker can pre-check them.
+  const selectedIds = new Set(idsParam ? idsParam.split(',').map(Number).filter(Boolean) : []);
+%>
+
+<%
   // Is the address the QR codes point to usable by phones?
   const looksLocal = /localhost|127\.0\.0\.1/i.test(baseUrl);
   const currentQuery = `?sheet=${sheetKey}` + (category ? `&category=${category}` : '')
@@ -107,6 +112,40 @@
     <% } %>
   </form>
 
+  <!-- Tool picker: custom-select which tools to print -->
+  <details class="card picker-details" id="toolPicker" <%= selectedIds.size > 0 ? 'open' : '' %>>
+    <summary class="picker-summary">
+      <% if (selectedIds.size > 0) { %>
+        Custom selection: <strong><%= selectedIds.size %> tool<%= selectedIds.size === 1 ? '' : 's'%></strong> selected
+      <% } else { %>
+        Select specific tools to print
+      <% } %>
+    </summary>
+    <div class="picker-inner">
+      <div class="picker-bar">
+        <button type="button" id="pickerAll" class="btn btn-ghost btn-sm">Select all</button>
+        <button type="button" id="pickerNone" class="btn btn-ghost btn-sm">Clear</button>
+      </div>
+      <ul class="picker-list">
+        <% allTools.forEach(function(t) { %>
+          <li>
+            <label class="picker-row">
+              <input type="checkbox" class="picker-check" value="<%= t.id %>" <%= selectedIds.has(t.id) ? 'checked' : '' %>>
+              <span class="picker-name"><%= t.name %></span>
+              <span class="muted small picker-cat"><%= h.CATEGORY_LABELS[t.category] || t.category %></span>
+            </label>
+          </li>
+        <% }) %>
+      </ul>
+      <div class="form-actions" style="margin-top:.75rem">
+        <button type="button" id="pickerApply" class="btn">Apply selection</button>
+        <% if (selectedIds.size > 0) { %>
+          <a class="btn btn-ghost" href="/manager/labels?sheet=<%= sheetKey %><%= skip ? '&skip='+skip : '' %>">Print all instead</a>
+        <% } %>
+      </div>
+    </div>
+  </details>
+
   <p class="muted">
     <strong><%= tools.length %></strong> label<%= tools.length === 1 ? '' : 's' %> across
     <strong><%= pages.length %></strong> sheet<%= pages.length === 1 ? '' : 's' %>.
@@ -118,33 +157,75 @@
   <% } %>
 </div>
 
+<script>
+(function () {
+  var apply = document.getElementById('pickerApply');
+  var allBtn = document.getElementById('pickerAll');
+  var noneBtn = document.getElementById('pickerNone');
+  if (!apply) return;
+  function checks() { return document.querySelectorAll('.picker-check'); }
+  allBtn.addEventListener('click', function () {
+    checks().forEach(function (c) { c.checked = true; });
+  });
+  noneBtn.addEventListener('click', function () {
+    checks().forEach(function (c) { c.checked = false; });
+  });
+  apply.addEventListener('click', function () {
+    var ids = Array.prototype.map.call(
+      document.querySelectorAll('.picker-check:checked'),
+      function (c) { return c.value; }
+    );
+    var base = '/manager/labels?sheet=<%= sheetKey %>' + (<%= skip %> ? '&skip=<%= skip %>' : '');
+    window.location.href = ids.length ? base + '&ids=' + ids.join(',') : base;
+  });
+})();
+</script>
+
 <!-- ===================== THE PRINTABLE SHEETS ===================== -->
 <style>
   @page { size: letter; margin: <%= spec.marginTop %>in <%= spec.marginSide %>in; }
 
   /* ---- ON SCREEN: One Key-style card preview ---- */
   @media screen {
-    .sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .75rem; }
+    .sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: .4rem; }
     .sheet { display: contents; }
     .label {
-      display: flex; flex-direction: column; align-items: center;
-      background: #fff; border: 1px solid #ddd; border-radius: 10px;
-      padding: .5rem .5rem 0; overflow: hidden;
-      color: #000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #fff; border: 1px solid #ddd; border-radius: 6px;
+      padding: .2rem; overflow: hidden; color: #000; gap: .12rem;
     }
     .label.empty { display: none; }
-    .label__qr { width: 80px; height: 80px; flex: 0 0 auto; }
+    .label__qr { width: 90px; height: 90px; flex: 0 0 auto; }
     .label__id {
-      font-weight: 900; font-size: 1.05rem; letter-spacing: .04em;
-      text-align: center; color: #000; margin-top: .3rem;
-      white-space: nowrap;
+      font-weight: 900; font-size: 1rem; letter-spacing: .04em;
+      text-align: center; color: #000; white-space: nowrap;
     }
     .label__bar {
-      width: calc(100% + 1rem); background: #000; color: #fff;
-      font-size: .62rem; text-align: center;
-      padding: .22rem .5rem; margin-top: .35rem;
+      width: 90px; background: #000; color: #fff; border-radius: 3px;
+      font-size: .6rem; text-align: center;
+      padding: .15rem .3rem;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+  }
+
+  /* ---- Tool picker (screen only) ---- */
+  @media screen {
+    .picker-details { margin-bottom: 1rem; }
+    .picker-summary { cursor: pointer; font-weight: 600; padding: .5rem 0; user-select: none; }
+    .picker-inner { margin-top: .5rem; }
+    .picker-bar { display: flex; gap: .5rem; margin-bottom: .5rem; }
+    .picker-list {
+      list-style: none; padding: 0; margin: 0;
+      max-height: 260px; overflow-y: auto;
+      border: 1px solid var(--border, #e4e4e7); border-radius: 6px;
+    }
+    .picker-row {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .4rem .75rem; cursor: pointer;
+    }
+    .picker-row:hover { background: var(--surface-2, #f4f4f5); }
+    .picker-name { flex: 1; font-size: .9rem; }
+    .picker-cat { flex: 0 0 auto; font-size: .75rem; }
   }
 
   /* ---- ON PAPER: exact Avery sticker geometry ---- */
@@ -158,25 +239,29 @@
       justify-content: start; align-content: start;
     }
     .sheet:not(:last-child) { break-after: page; }
+    <%
+      const printGap   = (spec.gap    !== undefined ? spec.gap    : 0.02).toFixed(3);
+      const printBPad  = (spec.barPad !== undefined ? spec.barPad : 0.02).toFixed(3);
+      const printBPadH = (spec.barPad !== undefined ? spec.barPad * 2 : 0.04).toFixed(3);
+    %>
     .label {
       box-sizing: border-box;
       width: <%= spec.labelW %>in; height: <%= spec.labelH %>in;
-      display: flex; flex-direction: column; align-items: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
       background: #fff; overflow: hidden;
-      padding: 0.04in 0.04in 0;
+      gap: <%= printGap %>in;
     }
     .label__qr { width: <%= spec.qrSize %>in; height: <%= spec.qrSize %>in; flex: 0 0 auto; }
     .label__id {
       font-size: <%= spec.idFont %>pt; font-weight: 900;
       letter-spacing: 0.04em; color: #000;
-      margin-top: 0.02in; flex: 0 0 auto;
-      text-align: center; white-space: nowrap;
+      flex: 0 0 auto; text-align: center; white-space: nowrap;
     }
     .label__bar {
-      width: 100%; background: #000; color: #fff;
+      width: <%= spec.qrSize %>in; background: #000; color: #fff;
       font-size: <%= spec.barFont %>pt; text-align: center;
-      padding: 0.025in 0.06in;
-      margin-top: auto; flex: 0 0 auto;
+      padding: <%= printBPad %>in <%= printBPadH %>in; border-radius: 2px;
+      flex: 0 0 auto;
       overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
     }
   }

@@ -1,7 +1,10 @@
 <%- include('partials/head', { title: tool.name }) %>
 
-<% const canSignOut = tool.status === 'available'; %>
-<% const canCheckIn = tool.status === 'signed_out'; %>
+<%
+  const isBulk = tool.quantity > 1;
+  const canSignOut = isBulk ? tool.available_qty > 0 : tool.status === 'available';
+  const canCheckIn = isBulk ? checkedOut > 0 : tool.status === 'signed_out';
+%>
 
 <div class="tool-page">
 
@@ -14,18 +17,39 @@
       <img class="tool-photo" src="<%= photoSrc(tool.photo) %>" alt="<%= tool.name %>">
     <% } %>
     <h1><%= tool.name %></h1>
-    <span class="badge badge--<%= tool.status %> badge--lg"><%= h.STATUS_LABELS[tool.status] %></span>
+    <% if (isBulk) { %>
+      <span class="badge badge--<%= tool.available_qty > 0 ? 'available' : 'signed_out' %> badge--lg">
+        <%= tool.available_qty %> of <%= tool.quantity %> available
+      </span>
+    <% } else { %>
+      <span class="badge badge--<%= tool.status %> badge--lg"><%= h.STATUS_LABELS[tool.status] %></span>
+    <% } %>
   </div>
 
-  <% if (!canCheckIn) { %>
+  <% if (!isBulk && !canCheckIn) { %>
     <p class="loc-line">📍 At the <%= homeLocation %></p>
   <% } %>
+  <% if (isBulk && tool.available_qty > 0) { %>
+    <p class="loc-line">📍 <%= tool.available_qty %> unit<%= tool.available_qty === 1 ? '' : 's' %> at the <%= homeLocation %></p>
+  <% } %>
 
-  <% if (canCheckIn && openCheckout) { %>
+  <% if (canCheckIn && !isBulk && openCheckout) { %>
     <div class="card status-card">
       <div><strong>Out to:</strong> <%= openCheckout.employee_name %></div>
       <% if (openCheckout.site_name) { %><div><strong>Job site:</strong> <%= openCheckout.site_name %></div><% } else { %><div class="muted">No job site — held by <%= openCheckout.employee_name %></div><% } %>
       <div><strong>Gone for:</strong> <%= h.durationSince(openCheckout.time_out) %></div>
+    </div>
+  <% } %>
+
+  <% if (isBulk && openCheckouts.length > 0) { %>
+    <div class="card status-card">
+      <div class="muted small" style="margin-bottom:.4rem"><strong><%= checkedOut %> unit<%= checkedOut === 1 ? '' : 's' %> currently out:</strong></div>
+      <% openCheckouts.forEach(function(c) { %>
+        <div class="bulk-holder">
+          <span><strong><%= c.quantity %>×</strong> <%= c.employee_name %><% if (c.site_name) { %> — <%= c.site_name %><% } %></span>
+          <span class="muted small"><%= h.durationSince(c.time_out) %></span>
+        </div>
+      <% }) %>
     </div>
   <% } %>
 
@@ -79,6 +103,7 @@
   <input type="hidden" name="employee_id">
   <input type="hidden" name="pin">
   <input type="hidden" name="site_id">
+  <input type="hidden" name="quantity" value="1">
 
   <section class="step" data-step="who">
     <button type="button" class="flow__cancel" data-flow-cancel>✕ Cancel</button>
@@ -106,6 +131,20 @@
       <% }) %>
     </div>
   </section>
+
+  <% if (isBulk) { %>
+  <section class="step" data-step="qty" data-max-qty="<%= tool.available_qty %>" hidden>
+    <button type="button" class="flow__cancel" data-flow-back>← Back</button>
+    <h2>How many?</h2>
+    <p class="muted"><strong><%= tool.available_qty %></strong> of <%= tool.quantity %> available right now</p>
+    <div class="qty-stepper">
+      <button type="button" class="qty-btn" data-qty-down>−</button>
+      <span class="qty-value" data-qty-display>1</span>
+      <button type="button" class="qty-btn" data-qty-up>+</button>
+    </div>
+    <button type="button" class="btn btn-huge btn-go" data-flow-next>Continue</button>
+  </section>
+  <% } %>
 
   <section class="step" data-step="confirm" hidden>
     <button type="button" class="flow__cancel" data-flow-back>← Back</button>

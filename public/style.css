@@ -278,6 +278,14 @@ a:active { opacity: .6; }
 .pick:active { background: var(--brand-tint); transform: scale(0.98); }
 .pick--muted { border-color: var(--muted); color: var(--muted); font-weight: 500; min-height: 56px; font-size: 1rem; }
 
+/* Quantity stepper (bulk sign-out flow) */
+.qty-stepper { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin: 1.5rem 0; }
+.qty-btn { width: 64px; height: 64px; font-size: 2rem; line-height: 1; border-radius: 50%; border: 2px solid var(--border); background: var(--card); cursor: pointer; font-weight: 300; }
+.qty-btn:active { background: var(--brand-tint); }
+.qty-value { font-size: 3rem; font-weight: 700; min-width: 3rem; text-align: center; }
+.bulk-holder { display: flex; justify-content: space-between; align-items: baseline; padding: .25rem 0; font-size: .95rem; }
+.bulk-holder + .bulk-holder { border-top: 1px solid var(--border); margin-top: .25rem; padding-top: .5rem; }
+
 /* PIN entry */
 .pin { max-width: 340px; margin: 0 auto; }
 .pin__dots { display: flex; justify-content: center; gap: 1.1rem; margin: .75rem 0 1.75rem; }

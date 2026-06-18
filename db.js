@@ -200,40 +200,75 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
-// One-time fix: categories.key is UNIQUE locally but the constraint was never
-// pushed to Turso (db.exec is local-only on libsql), so duplicate keys crept
-// in. Every row ended up with key='vacuums', making all category dropdowns
-// show "Vacuums". This migration gives each row its correct key derived from
-// its label, then removes any true duplicates.
+// Fix: categories.key is UNIQUE locally but the constraint was never pushed to
+// Turso (db.exec is local-only on libsql), so duplicates can creep in via:
+//   a) a broken earlier migration that left all rows sharing one key
+//   b) the seed re-inserting default rows on every boot (no constraint = no
+//      "OR IGNORE" effect in Turso), or
+//   c) a manager adding the same category name more than once.
+//
+// Strategy: group by the CORRECT key (derived from each row's label). Within
+// each group keep the lowest id (oldest = most authoritative) and delete the
+// rest. Then fix any surviving rows whose current key differs from the correct
+// one. Finally, remap any tools whose category no longer exists to 'other'.
 // ---------------------------------------------------------------------------
 (function fixCategoryKeys() {
   function toKey(label) {
     return String(label || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   }
   const rows = db.prepare('SELECT id, key, label FROM categories ORDER BY id').all();
-  // Group by current (possibly wrong) key
-  const byKey = new Map();
+  // Group by the correct key each row *should* have.
+  const byCorrect = new Map();
   for (const r of rows) {
-    if (!byKey.has(r.key)) byKey.set(r.key, []);
-    byKey.get(r.key).push(r);
+    const ck = toKey(r.label);
+    if (!byCorrect.has(ck)) byCorrect.set(ck, []);
+    byCorrect.get(ck).push(r);
   }
-  for (const group of byKey.values()) {
-    if (group.length <= 1) continue; // no duplicates — nothing to fix
-    for (const row of group) {
-      const correct = toKey(row.label);
-      if (correct === row.key) continue; // already correct
-      const conflict = db.prepare('SELECT id FROM categories WHERE key = ? AND id != ?').get(correct, row.id);
-      if (!conflict) {
-        db.prepare('UPDATE categories SET key = ? WHERE id = ?').run(correct, row.id);
-        // Re-point any tools that were saved under the old (wrong) key for this label
-        // Only safe when the old key was shared — tools still on that old key that
-        // belong to a *different* label will be handled when that label's row is fixed.
-        db.prepare('UPDATE tools SET category = ? WHERE category = ?').run(correct, row.key);
-      } else {
-        // Correct key is already taken by another row — this row is a true duplicate; remove it.
-        db.prepare('DELETE FROM categories WHERE id = ?').run(row.id);
-      }
+  let changed = false;
+  for (const [correctKey, group] of byCorrect) {
+    // Keep first (lowest id), delete all others (true duplicates or wrong-key copies).
+    for (let i = 1; i < group.length; i++) {
+      db.prepare('DELETE FROM categories WHERE id = ?').run(group[i].id);
+      changed = true;
     }
+    // Fix the surviving row's key if it's wrong.
+    const keeper = group[0];
+    if (keeper.key !== correctKey) {
+      db.prepare('UPDATE categories SET key = ? WHERE id = ?').run(correctKey, keeper.id);
+      changed = true;
+    }
+  }
+  if (changed) {
+    // Re-point tools whose category key no longer exists after the cleanup.
+    // We can't reliably reverse-map old shared keys to specific labels, so
+    // fall back to 'other' for any orphaned tool.
+    db.prepare(
+      "UPDATE tools SET category = 'other' WHERE category NOT IN (SELECT key FROM categories)"
+    ).run();
+  }
+})();
+
+// ---------------------------------------------------------------------------
+// Migration: tools gain an optional "quantity" — how many physical units are
+// owned. Default 1 means a unique single item (current behaviour unchanged).
+// Values > 1 enable bulk checkout: multiple people can check out different
+// quantities simultaneously.
+// ---------------------------------------------------------------------------
+(function ensureToolQuantity() {
+  const cols = db.prepare('PRAGMA table_info(tools)').all();
+  if (!cols.some((c) => c.name === 'quantity')) {
+    db.prepare('ALTER TABLE tools ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1').run();
+  }
+})();
+
+// ---------------------------------------------------------------------------
+// Migration: checkouts gain "quantity" to record how many units were taken in
+// a single checkout. Defaults to 1 so all existing rows are correct.
+// ---------------------------------------------------------------------------
+(function ensureCheckoutQuantity() {
+  const cols = db.prepare('PRAGMA table_info(checkouts)').all();
+  if (!cols.some((c) => c.name === 'quantity')) {
+    db.prepare('ALTER TABLE checkouts ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1').run();
   }
 })();
 
@@ -241,16 +276,20 @@ const { materialKey } = require('./lib/materials');
 // Seed the default tool categories the first time the app runs.
 // ---------------------------------------------------------------------------
 (function seedCategories() {
-  // INSERT OR IGNORE runs on every boot so the defaults always reach Turso,
-  // even if the table was empty after a fresh sync. Existing rows are untouched.
+  // Check before inserting — INSERT OR IGNORE is unreliable in Turso because
+  // the UNIQUE constraint on categories.key was never pushed there (db.exec is
+  // local-only), so "OR IGNORE" never fires and every boot re-inserts rows.
   const defaults = [
     ['drill', 'Drill', '🪛', '#3b82f6', 0],
     ['saw', 'Saw', '🪚', '#10b981', 1],
     ['ladder', 'Ladder', '🪜', '#f59e0b', 2],
     ['other', 'Other', '🧰', '#a1a1aa', 3],
   ];
-  const insert = db.prepare('INSERT OR IGNORE INTO categories (key, label, icon, color, sort_order) VALUES (?, ?, ?, ?, ?)');
-  for (const [key, label, icon, color, sort] of defaults) insert.run(key, label, icon, color, sort);
+  const exists = db.prepare('SELECT 1 FROM categories WHERE key = ?');
+  const insert = db.prepare('INSERT INTO categories (key, label, icon, color, sort_order) VALUES (?, ?, ?, ?, ?)');
+  for (const [key, label, icon, color, sort] of defaults) {
+    if (!exists.get(key)) insert.run(key, label, icon, color, sort);
+  }
 })();
 
 // ---------------------------------------------------------------------------
