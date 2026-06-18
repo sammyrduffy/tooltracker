@@ -1,0 +1,117 @@
+<%
+  const isActive = !audit.ended_at;
+  const scannedSet = new Set(scannedIds);
+  const confirmed = tools.filter(t => scannedSet.has(t.id));
+  const missing   = tools.filter(t => !scannedSet.has(t.id));
+%>
+<%- include('../partials/head', { title: isActive ? 'Audit in progress' : 'Audit complete' }) %>
+
+<div class="page-head">
+  <h1><%= isActive ? 'Audit in progress' : 'Audit complete' %></h1>
+  <a class="btn btn-ghost btn-sm" href="/manager/audit">All audits</a>
+</div>
+
+<% if (audit.note) { %><p class="muted" style="margin-top:-.25rem"><%= audit.note %></p><% } %>
+
+<!-- Counter -->
+<div class="audit-counter" id="auditCounter">
+  <span id="auditConfirmedCount"><%= confirmed.length %></span>
+  <span class="audit-counter__sep"> / </span>
+  <span><%= tools.length %></span>
+  <span class="audit-counter__label"> confirmed</span>
+</div>
+
+<% if (isActive) { %>
+
+<!-- Finish button -->
+<form method="post" action="/manager/audit/<%= audit.id %>/finish"
+      onsubmit="return confirm('Finish this audit? You won\'t be able to confirm more tools afterwards.')">
+  <button type="submit" class="btn btn-big" style="width:100%;margin-bottom:1rem">Finish audit</button>
+</form>
+
+<!-- QR Scanner -->
+<details class="card audit-scanner" id="scannerDetails">
+  <summary style="cursor:pointer;font-weight:600;padding:.1rem 0;user-select:none">📷 Scan a QR code</summary>
+  <div style="margin-top:.75rem">
+    <p class="muted small" id="scanStatus">Point your camera at a tool's QR sticker.</p>
+    <div class="scanner" id="scannerBox">
+      <video id="scanVideo" playsinline muted></video>
+      <div class="scanner__frame"></div>
+    </div>
+    <div id="scanResult" class="audit-scan-result" hidden></div>
+  </div>
+</details>
+
+<% } else { %>
+
+<!-- Finished summary -->
+<div class="card" style="margin-bottom:1rem">
+  <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+    <div><span class="audit-stat audit-stat--ok"><%= confirmed.length %></span><br><span class="muted small">confirmed</span></div>
+    <div><span class="audit-stat <%= missing.length > 0 ? 'audit-stat--warn' : 'audit-stat--ok' %>"><%= missing.length %></span><br><span class="muted small">not seen</span></div>
+    <div><span class="audit-stat"><%= h.durationSince(audit.started_at, audit.ended_at) %></span><br><span class="muted small">duration</span></div>
+  </div>
+  <p class="muted small" style="margin:.75rem 0 0">by <%= audit.started_by_name %> · <%= h.formatDateTime(audit.started_at) %></p>
+</div>
+
+<% } %>
+
+<!-- Not confirmed -->
+<% if (missing.length > 0) { %>
+<h2 style="margin-top:1.25rem">
+  <% if (isActive) { %>Not yet confirmed (<%= missing.length %>)<% } else { %>Not confirmed — <%= missing.length %> tool<%= missing.length === 1 ? '' : 's' %><% } %>
+</h2>
+<% if (!isActive) { %>
+  <p class="muted small">These tools were not seen during the audit. They may be at a job site or unaccounted for.</p>
+<% } %>
+<div class="card" style="padding:0">
+  <ul class="audit-list" id="pendingList">
+    <% missing.forEach(function(t) { %>
+      <li class="audit-row" id="row-<%= t.id %>">
+        <div class="audit-row__info">
+          <a href="/t/<%= t.short_id %>"><strong><%= t.name %></strong></a>
+          <span class="badge badge--<%= t.status %> badge--sm"><%= h.STATUS_LABELS[t.status] %></span>
+        </div>
+        <% if (isActive) { %>
+          <button type="button" class="btn btn-ghost btn-sm audit-confirm-btn"
+                  data-short-id="<%= t.short_id %>" data-tool-id="<%= t.id %>">Confirm</button>
+        <% } %>
+      </li>
+    <% }) %>
+  </ul>
+</div>
+<% } else { %>
+  <div class="card card--center" style="margin-top:1rem"><p class="muted">Every tool was confirmed. 🎉</p></div>
+<% } %>
+
+<!-- Confirmed (collapsible when active) -->
+<% if (confirmed.length > 0) { %>
+<details <%= isActive ? '' : 'open' %> style="margin-top:1.25rem">
+  <summary style="cursor:pointer;font-weight:600;color:var(--muted);font-size:.9rem;user-select:none">
+    Confirmed (<%= confirmed.length %>)
+  </summary>
+  <div class="card" style="padding:0;margin-top:.5rem">
+    <ul class="audit-list" id="confirmedList">
+      <% confirmed.forEach(function(t) { %>
+        <li class="audit-row audit-row--confirmed" id="row-<%= t.id %>">
+          <div class="audit-row__info">
+            <span style="color:var(--go)">✓</span>
+            <span><%= t.name %></span>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  </div>
+</details>
+<% } %>
+
+<% if (isActive) { %>
+<script>
+var AUDIT_ID = <%= audit.id %>;
+var SCAN_URL = '/manager/audit/' + AUDIT_ID + '/scan';
+</script>
+<script src="/jsqr.js"></script>
+<script src="/audit.js"></script>
+<% } %>
+
+<%- include('../partials/foot') %>

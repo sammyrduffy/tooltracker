@@ -1512,4 +1512,69 @@ router.post('/scanners/:id/enable', checkPermission('manager'), (req, res) => {
   res.redirect('/manager/beacons');
 });
 
+// ===========================================================================
+// AUDIT — walk a site, scan/tap each tool, finish to see what's missing
+// ===========================================================================
+router.use('/audit', checkPermission('manager'));
+
+router.get('/audit', (req, res) => {
+  const audits = db.prepare(`
+    SELECT a.*, e.name AS started_by_name,
+      (SELECT COUNT(*) FROM audit_scans WHERE audit_id = a.id) AS scanned_count
+    FROM audits a
+    LEFT JOIN employees e ON e.id = a.started_by
+    ORDER BY a.started_at DESC LIMIT 30
+  `).all();
+  const totalTools = db.prepare('SELECT COUNT(*) AS n FROM tools').get().n;
+  res.render('manager/audit', { audits, totalTools });
+});
+
+router.post('/audit/start', (req, res) => {
+  const note = (req.body.note || '').trim() || null;
+  const info = db.prepare('INSERT INTO audits (started_by, note) VALUES (?, ?)')
+    .run(req.session.manager.id, note);
+  res.redirect('/manager/audit/' + info.lastInsertRowid);
+});
+
+router.get('/audit/:id', (req, res) => {
+  const audit = db.prepare(`
+    SELECT a.*, e.name AS started_by_name
+    FROM audits a LEFT JOIN employees e ON e.id = a.started_by
+    WHERE a.id = ?
+  `).get(Number(req.params.id));
+  if (!audit) return res.redirect('/manager/audit');
+
+  const tools = db.prepare(
+    'SELECT id, short_id, name, category, status FROM tools ORDER BY name'
+  ).all();
+  const scannedIds = db.prepare('SELECT tool_id FROM audit_scans WHERE audit_id = ?')
+    .all(audit.id).map(r => r.tool_id);
+
+  res.render('manager/audit-session', { audit, tools, scannedIds });
+});
+
+// AJAX — mark one tool confirmed; accepts { short_id }
+router.post('/audit/:id/scan', (req, res) => {
+  const audit = db.prepare('SELECT id, ended_at FROM audits WHERE id = ?')
+    .get(Number(req.params.id));
+  if (!audit || audit.ended_at) return res.json({ ok: false, error: 'Audit not active' });
+
+  const shortId = (req.body.short_id || '').trim();
+  const tool = shortId
+    ? db.prepare('SELECT id, name, short_id, status FROM tools WHERE short_id = ?').get(shortId)
+    : null;
+  if (!tool) return res.json({ ok: false, error: 'Tool not found' });
+
+  const info = db.prepare('INSERT OR IGNORE INTO audit_scans (audit_id, tool_id) VALUES (?, ?)')
+    .run(audit.id, tool.id);
+
+  return res.json({ ok: true, tool: { id: tool.id, name: tool.name, short_id: tool.short_id }, already: info.changes === 0 });
+});
+
+router.post('/audit/:id/finish', (req, res) => {
+  db.prepare("UPDATE audits SET ended_at = datetime('now') WHERE id = ? AND ended_at IS NULL")
+    .run(Number(req.params.id));
+  res.redirect('/manager/audit/' + req.params.id);
+});
+
 module.exports = router;

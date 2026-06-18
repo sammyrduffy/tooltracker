@@ -289,6 +289,31 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
+// Migration: audit tables — managers can walk a site, scan/tap each tool they
+// physically see, then finish to get a list of everything not confirmed.
+// ---------------------------------------------------------------------------
+(function ensureAuditTables() {
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS audits (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      started_by INTEGER REFERENCES employees(id),
+      started_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      ended_at   TEXT,
+      note       TEXT
+    )
+  `).run();
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS audit_scans (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      audit_id   INTEGER NOT NULL REFERENCES audits(id) ON DELETE CASCADE,
+      tool_id    INTEGER NOT NULL REFERENCES tools(id)  ON DELETE CASCADE,
+      scanned_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(audit_id, tool_id)
+    )
+  `).run();
+})();
+
+// ---------------------------------------------------------------------------
 // Seed the "Gateway (Auto)" system employee used for BLE auto-checkouts.
 // active=0 keeps it out of the employee picker on the sign-out page.
 // The pin_hash has no ':' so verifyPin() always returns false — this account

@@ -665,6 +665,32 @@ a.stat { color: inherit; } a.stat:active { background: var(--card-press); opacit
   .site-map { aspect-ratio: 16 / 9; width: 100%; }
 }
 
+/* ---- Audit mode ---------------------------------------------------------- */
+.audit-counter {
+  text-align: center; font-size: 2.5rem; font-weight: 800;
+  margin: .5rem 0 1rem; line-height: 1;
+}
+.audit-counter__sep { color: var(--muted); font-weight: 400; }
+.audit-counter__label { font-size: 1rem; font-weight: 400; color: var(--muted); }
+.audit-scanner { margin-bottom: 1rem; }
+.audit-scan-result {
+  margin-top: .6rem; padding: .5rem .75rem; border-radius: 8px;
+  font-weight: 600; font-size: .9rem;
+}
+.audit-scan-result--ok   { background: var(--go-tint);   color: var(--go); }
+.audit-scan-result--warn { background: var(--in-tint);   color: var(--in); }
+.audit-stat { font-size: 1.75rem; font-weight: 800; }
+.audit-stat--ok   { color: var(--go); }
+.audit-stat--warn { color: var(--warn); }
+.audit-list { list-style: none; padding: 0; margin: 0; }
+.audit-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .6rem 1rem; border-bottom: 1px solid var(--separator);
+}
+.audit-row:last-child { border-bottom: none; }
+.audit-row__info { display: flex; align-items: center; gap: .5rem; flex: 1; min-width: 0; }
+.audit-row--confirmed { opacity: .45; }
+
 /* Tools / Materials segmented toggle on the site report */
 .seg-control { display: flex; gap: .4rem; margin: .2rem 0 .7rem; }
 .seg-btn {

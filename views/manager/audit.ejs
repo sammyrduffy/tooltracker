@@ -1,0 +1,46 @@
+<%- include('../partials/head', { title: 'Audit' }) %>
+
+<div class="page-head">
+  <h1>Audit</h1>
+</div>
+
+<div class="card form" style="margin-bottom:1.25rem">
+  <p class="muted small" style="margin:0 0 .75rem">Walk the storage area, scan or tap each tool you physically see, then finish to find out what's unaccounted for.</p>
+  <form method="post" action="/manager/audit/start">
+    <div style="display:flex;gap:.6rem;align-items:flex-end">
+      <label style="flex:1;margin:0">
+        <span class="muted small">Note (optional)</span>
+        <input type="text" name="note" placeholder="e.g. Shop check — June 2026" autocomplete="off">
+      </label>
+      <button type="submit" class="btn">Start audit</button>
+    </div>
+  </form>
+</div>
+
+<% if (audits.length === 0) { %>
+  <div class="card card--center"><p class="muted">No audits yet. Start one above.</p></div>
+<% } else { %>
+  <div class="card" style="padding:0">
+    <ul style="list-style:none;margin:0;padding:0">
+      <% audits.forEach(function(a, i) { %>
+        <li style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;<%= i < audits.length-1 ? 'border-bottom:1px solid var(--separator)' : '' %>">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:.95rem">
+              <%= a.ended_at ? '✓' : '🔄' %>
+              <%= h.formatDateTime(a.started_at) %>
+              <% if (a.note) { %><span class="muted" style="font-weight:400"> · <%= a.note %></span><% } %>
+            </div>
+            <div class="muted small" style="margin-top:.15rem">
+              by <%= a.started_by_name || 'Unknown' %> ·
+              <strong><%= a.scanned_count %></strong> / <%= totalTools %> confirmed
+              <% if (a.ended_at) { %> · <%= h.durationSince(a.started_at, a.ended_at) %><% } else { %> · <span style="color:var(--brand)">in progress</span><% } %>
+            </div>
+          </div>
+          <a class="btn btn-ghost btn-sm" href="/manager/audit/<%= a.id %>"><%= a.ended_at ? 'View' : 'Continue' %></a>
+        </li>
+      <% }) %>
+    </ul>
+  </div>
+<% } %>
+
+<%- include('../partials/foot') %>
