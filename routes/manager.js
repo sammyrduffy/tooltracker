@@ -18,7 +18,7 @@ const { MATERIAL_TYPES, materialKey } = require('../lib/materials');
 const { parseCSV } = require('../lib/csv');
 const { listCategories, categoryKeys, categoryMaps, categoryKey } = require('../lib/categories');
 const { ensureBleSchema } = require('../lib/ble/schema');
-const { invalidateScannerCache } = require('../lib/ble/ingest');
+const { invalidateScannerCache, invalidateBeaconCache } = require('../lib/ble/ingest');
 
 // Make sure the beacon tables exist before any prepared statement below
 // touches them — this module can be required before lib/ble/ingest.js runs.
@@ -1470,6 +1470,7 @@ router.post('/beacons/:beaconKey/pair', checkPermission('manager'), (req, res) =
     ON CONFLICT(beacon_key) DO UPDATE SET tool_id = excluded.tool_id, label = excluded.label
   `).run(beaconKey, uuid, major, minor, toolId, label);
 
+  invalidateBeaconCache(); // tool_id just changed — flush cached beacon data
   req.session.flash = { type: 'success', text: toolId ? '✓ Beacon paired' : '✓ Beacon unpaired' };
   res.redirect('/manager/beacons');
 });
