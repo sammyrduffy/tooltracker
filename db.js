@@ -200,6 +200,44 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
+// One-time fix: categories.key is UNIQUE locally but the constraint was never
+// pushed to Turso (db.exec is local-only on libsql), so duplicate keys crept
+// in. Every row ended up with key='vacuums', making all category dropdowns
+// show "Vacuums". This migration gives each row its correct key derived from
+// its label, then removes any true duplicates.
+// ---------------------------------------------------------------------------
+(function fixCategoryKeys() {
+  function toKey(label) {
+    return String(label || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+  const rows = db.prepare('SELECT id, key, label FROM categories ORDER BY id').all();
+  // Group by current (possibly wrong) key
+  const byKey = new Map();
+  for (const r of rows) {
+    if (!byKey.has(r.key)) byKey.set(r.key, []);
+    byKey.get(r.key).push(r);
+  }
+  for (const group of byKey.values()) {
+    if (group.length <= 1) continue; // no duplicates — nothing to fix
+    for (const row of group) {
+      const correct = toKey(row.label);
+      if (correct === row.key) continue; // already correct
+      const conflict = db.prepare('SELECT id FROM categories WHERE key = ? AND id != ?').get(correct, row.id);
+      if (!conflict) {
+        db.prepare('UPDATE categories SET key = ? WHERE id = ?').run(correct, row.id);
+        // Re-point any tools that were saved under the old (wrong) key for this label
+        // Only safe when the old key was shared — tools still on that old key that
+        // belong to a *different* label will be handled when that label's row is fixed.
+        db.prepare('UPDATE tools SET category = ? WHERE category = ?').run(correct, row.key);
+      } else {
+        // Correct key is already taken by another row — this row is a true duplicate; remove it.
+        db.prepare('DELETE FROM categories WHERE id = ?').run(row.id);
+      }
+    }
+  }
+})();
+
+// ---------------------------------------------------------------------------
 // Seed the default tool categories the first time the app runs.
 // ---------------------------------------------------------------------------
 (function seedCategories() {
