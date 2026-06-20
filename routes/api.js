@@ -76,15 +76,4 @@ router.get('/health', (req, res) => {
   res.json({ ok: true, ...stats() });
 });
 
-// --- TEMPORARY diagnostic: inspect the production categories table -----------
-// Read-only. Token-gated. REMOVE after the category corruption is resolved.
-router.get('/debug/categories', (req, res) => {
-  if (req.query.token !== 'cat-inspect-2026') return res.status(403).json({ error: 'forbidden' });
-  const cats = db.prepare('SELECT id, key, label, sort_order FROM categories ORDER BY id').all();
-  const toolDist = db.prepare(
-    'SELECT category, COUNT(*) AS n FROM tools GROUP BY category ORDER BY n DESC'
-  ).all();
-  res.json({ categoryCount: cats.length, categories: cats, toolCategoryDistribution: toolDist });
-});
-
 module.exports = router;

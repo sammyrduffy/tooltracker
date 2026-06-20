@@ -257,6 +257,7 @@ a:active { opacity: .6; }
 .tool-head { text-align: center; margin: .5rem 0 1.25rem; }
 .tool-photo { width: 100%; max-height: 240px; object-fit: cover; border-radius: var(--radius-lg); margin-bottom: .85rem; }
 .tool-head h1 { margin-bottom: .6rem; }
+.tool-model { text-align: center; color: var(--muted); font-weight: 500; margin: -.4rem 0 .7rem; }
 .status-card div { margin: .2rem 0; }
 .loc-line { text-align: center; color: var(--muted); margin: -.5rem 0 0; font-weight: 500; }
 .details__grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin: .5rem 0; }

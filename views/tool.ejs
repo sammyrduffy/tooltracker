@@ -17,6 +17,7 @@
       <img class="tool-photo" src="<%= photoSrc(tool.photo) %>" alt="<%= tool.name %>">
     <% } %>
     <h1><%= tool.name %></h1>
+    <% if (tool.model_number) { %><p class="tool-model">Model <%= tool.model_number %></p><% } %>
     <% if (isBulk) { %>
       <span class="badge badge--<%= tool.available_qty > 0 ? 'available' : 'signed_out' %> badge--lg">
         <%= tool.available_qty %> of <%= tool.quantity %> available
