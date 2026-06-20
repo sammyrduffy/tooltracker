@@ -8,7 +8,6 @@
 // ---------------------------------------------------------------------------
 
 const path = require('path');
-const os = require('os');
 const crypto = require('crypto');
 
 // The database file lives next to this code file. A TOOLTRACKER_DB environment
@@ -21,11 +20,17 @@ const DB_FILE = process.env.TOOLTRACKER_DB || path.join(__dirname, 'tooltracker.
 // (db.prepare(...).get/all/run, db.exec(...)) so nothing else in the app
 // changes.
 //
-//  • In the cloud (Turso configured): use libSQL with an "embedded replica".
-//    The permanent home of the data is Turso; we keep a fast local copy and
-//    sync it. The local copy can be thrown away on every restart — it just
-//    re-downloads from Turso — which is exactly what we need on a host with
-//    no permanent disk.
+//  • In the cloud (Turso configured): connect directly to Turso over the
+//    network for every query — no local replica, no sync. We used to keep an
+//    "embedded replica" (a local copy that re-downloads in full from Turso on
+//    every boot), but on a host with no persistent disk that means a FULL
+//    database re-sync on every restart and every deploy. That burns through
+//    Turso's free-tier "Syncs" (bytes transferred) quota fast — a handful of
+//    deploys in a few days was enough to max it out and lock the account.
+//    Direct remote queries are billed as ordinary row reads/writes instead,
+//    a completely different quota with far more headroom for an app this
+//    size. The tradeoff: each query is a network round-trip instead of a
+//    local disk read, so pages with several queries load a bit slower.
 //  • On the office PC (no Turso settings): use Node's built-in SQLite, exactly
 //    as before. The single TOOLTRACKER_DB file is the real data.
 //
@@ -35,16 +40,9 @@ const DB_FILE = process.env.TOOLTRACKER_DB || path.join(__dirname, 'tooltracker.
 let db;
 if (process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN) {
   const Database = require('libsql');
-  // The local replica is a disposable, fast copy of the Turso data — it
-  // re-downloads on every boot, so it can live in a throwaway temp folder.
-  // (Render's free tier has no permanent disk; a temp path is always writable.)
-  const localCopy = process.env.TOOLTRACKER_DB || path.join(os.tmpdir(), 'tooltracker-replica.db');
-  db = new Database(localCopy, {
-    syncUrl: process.env.TURSO_DATABASE_URL,
+  db = new Database(process.env.TURSO_DATABASE_URL, {
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
-  db.sync();                                 // pull the latest data on startup
-  setInterval(() => { try { db.sync(); } catch (_) {} }, 5 * 60 * 1000); // keep fresh (5 min)
 } else if (process.env.USE_LIBSQL) {
   const Database = require('libsql');
   db = new Database(DB_FILE);
