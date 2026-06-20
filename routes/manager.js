@@ -16,7 +16,7 @@ const { resolveBaseUrl } = require('../lib/baseurl');
 const { LABEL_SHEETS, DEFAULT_SHEET } = require('../lib/labels');
 const { MATERIAL_TYPES, materialKey } = require('../lib/materials');
 const { parseCSV } = require('../lib/csv');
-const { listCategories, categoryKeys, categoryMaps, categoryKey } = require('../lib/categories');
+const { listCategories, getCategoryById, categoryKeys, categoryMaps, categoryKey } = require('../lib/categories');
 const { ensureBleSchema } = require('../lib/ble/schema');
 const { invalidateScannerCache, invalidateBeaconCache } = require('../lib/ble/ingest');
 
@@ -1366,13 +1366,13 @@ router.post('/categories', (req, res) => {
 });
 
 router.get('/categories/:id/edit', (req, res) => {
-  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(Number(req.params.id));
+  const category = getCategoryById(Number(req.params.id));
   if (!category) return res.redirect('/manager/categories');
   res.render('manager/category-form', { category, error: null });
 });
 
 router.post('/categories/:id', (req, res) => {
-  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(Number(req.params.id));
+  const category = getCategoryById(Number(req.params.id));
   if (!category) return res.redirect('/manager/categories');
   const data = readCategoryForm(req);
   if (data.error) {
@@ -1386,7 +1386,7 @@ router.post('/categories/:id', (req, res) => {
 });
 
 router.post('/categories/:id/delete', (req, res) => {
-  const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(Number(req.params.id));
+  const category = getCategoryById(Number(req.params.id));
   if (!category) return res.redirect('/manager/categories');
   const used = db.prepare('SELECT COUNT(*) AS n FROM tools WHERE category = ?').get(category.key).n;
   if (used > 0) {

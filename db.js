@@ -209,25 +209,28 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
-// Fix: categories.key is UNIQUE locally but the constraint was never pushed to
-// Turso (db.exec is local-only on libsql), so duplicates can creep in via:
-//   a) a broken earlier migration that left all rows sharing one wrong key
-//      (e.g. all 17 categories ended up with key='hand_tools')
-//   b) the seed re-inserting default rows on every boot
-//   c) a manager adding the same category name more than once
+// Dedup safety net for the categories table: if two rows end up with the same
+// correct key (derived from their label), keep the oldest and delete the rest,
+// then re-point orphaned tools to 'other'.
 //
-// Single-pass algorithm (rows processed in id order — lowest id = oldest):
-//   • Compute each row's correct key from its label.
-//   • If that correct key hasn't been claimed yet: assign it (update if the
-//     row's current key is wrong) and mark it claimed.
-//   • If that correct key is already claimed: this is a duplicate — delete it.
-// This handles all three cases above without needing to group by anything.
+// NOTE: `key` is a SQL reserved word. The libsql driver returns it in result
+// rows as uppercase "KEY"; node:sqlite returns "key". We must read it via the
+// case-insensitive `rowKey()` helper below — reading row.key directly yields
+// `undefined` on libsql, which previously made this migration do a redundant
+// UPDATE on every row every boot (wasted Turso writes). The real category
+// display bug was this same casing issue in lib/categories.js, not duplicate
+// data — see normalizeRow() there.
 // ---------------------------------------------------------------------------
 (function fixCategoryKeys() {
   function toKey(label) {
     return String(label || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   }
-  const rows = db.prepare('SELECT id, key, label FROM categories ORDER BY id').all();
+  function rowKey(r) {
+    if (r.key !== undefined) return r.key;
+    for (const k of Object.keys(r)) if (k.toLowerCase() === 'key') return r[k];
+    return undefined;
+  }
+  const rows = db.prepare('SELECT * FROM categories ORDER BY id').all();
   const claimed = new Set();
   let changed = false;
   for (const row of rows) {
@@ -238,7 +241,7 @@ const { materialKey } = require('./lib/materials');
       changed = true;
     } else {
       claimed.add(correct);
-      if (row.key !== correct) {
+      if (rowKey(row) !== correct) {
         db.prepare('UPDATE categories SET key = ? WHERE id = ?').run(correct, row.id);
         changed = true;
       }
@@ -246,7 +249,6 @@ const { materialKey } = require('./lib/materials');
   }
   if (changed) {
     // Remap any tools whose stored category no longer has a matching row.
-    // (Happens when all rows shared a wrong key and tools were saved under it.)
     db.prepare(
       "UPDATE tools SET category = 'other' WHERE category NOT IN (SELECT key FROM categories)"
     ).run();
