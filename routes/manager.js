@@ -469,12 +469,22 @@ router.get('/tools', (req, res) => {
   const where = [];
   const params = [];
   if (q) {
-    where.push("(name LIKE ? OR coalesce(description,'') LIKE ? OR coalesce(serial_number,'') LIKE ? OR short_id LIKE ?)");
+    // Search across every text field on the tool, plus the category's label
+    // (so "drill" matches by category name, not just the stored key) and the
+    // tool's home/out site name.
+    where.push(`(
+      name LIKE ? OR coalesce(description,'') LIKE ? OR coalesce(serial_number,'') LIKE ?
+      OR coalesce(model_number,'') LIKE ? OR coalesce(condition_notes,'') LIKE ?
+      OR short_id LIKE ?
+      OR coalesce((SELECT label FROM categories WHERE key = t.category),'') LIKE ?
+      OR coalesce((SELECT s.name FROM checkouts c LEFT JOIN sites s ON s.id = c.site_id
+                   WHERE c.tool_id = t.id AND c.time_in IS NULL ORDER BY c.id DESC LIMIT 1),'') LIKE ?
+    )`);
     const like = `%${q}%`;
-    params.push(like, like, like, like);
+    params.push(like, like, like, like, like, like, like, like);
   }
-  if (category) { where.push('category = ?'); params.push(category); }
-  if (status) { where.push('status = ?'); params.push(status); }
+  if (category) { where.push('t.category = ?'); params.push(category); }
+  if (status) { where.push('t.status = ?'); params.push(status); }
 
   const sql = `SELECT t.*,
       (SELECT s.name FROM checkouts c LEFT JOIN sites s ON s.id = c.site_id

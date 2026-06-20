@@ -64,7 +64,6 @@
     <input type="hidden" name="return_to" value="<%= returnTo %>">
     <ul class="tool-list" id="toolList">
       <% tools.forEach(function(t) { %>
-        <% var loc = t.status === 'signed_out' ? (t.out_site || 'Out') : (t.status === 'available' ? homeLocation : h.STATUS_LABELS[t.status]); %>
         <li class="tool-row">
           <% if (manager.role === 'manager') { %>
           <input type="checkbox" class="tool-check" value="<%= t.id %>" aria-label="Select <%= t.name %>">
@@ -82,9 +81,14 @@
             <% } %>
             <span class="ti">
               <span class="tool-list__name"><%= t.name %></span>
-              <span class="ti__meta"><%= h.CATEGORY_LABELS[t.category] %> · 📍 <%= loc %><% if (t.quantity > 1) { %> · <strong><%= t.quantity - t.checked_out_qty %></strong>/<%= t.quantity %> avail.<% } %> · <code><%= h.toolLabelId(t) || t.short_id %></code></span>
+              <span class="ti__meta"><%= h.CATEGORY_LABELS[t.category] %><% if (t.quantity > 1) { %> · <strong><%= t.quantity - t.checked_out_qty %></strong>/<%= t.quantity %> avail.<% } %> · <code><%= h.toolLabelId(t) || t.short_id %></code></span>
             </span>
-            <span class="badge badge--<%= t.status %>"><%= h.STATUS_LABELS[t.status] %></span>
+            <span class="ti-right">
+              <% if (t.status === 'available' || t.status === 'signed_out') { %>
+                <span class="ti-loc">📍 <%= t.status === 'signed_out' ? (t.out_site || 'Out') : homeLocation %></span>
+              <% } %>
+              <span class="badge badge--<%= t.status %>"><%= h.STATUS_LABELS[t.status] %></span>
+            </span>
           </a>
           <button type="button" class="expand-btn" data-id="<%= t.id %>" aria-label="Show history for <%= t.name %>" aria-expanded="false">▾</button>
         </li>
