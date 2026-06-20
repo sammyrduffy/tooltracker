@@ -33,13 +33,17 @@
   </label>
 
   <div class="form-row">
+    <label>Model number
+      <input type="text" name="model_number" value="<%= v('model_number') %>" <%= ro %>>
+    </label>
     <label>Serial number
       <input type="text" name="serial_number" value="<%= v('serial_number') %>" <%= ro %>>
     </label>
-    <label>Purchase value ($)
-      <input type="number" name="purchase_value" step="0.01" min="0" value="<%= v('purchase_value') %>" <%= ro %>>
-    </label>
   </div>
+
+  <label>Purchase value ($)
+    <input type="number" name="purchase_value" step="0.01" min="0" value="<%= v('purchase_value') %>" <%= ro %>>
+  </label>
 
   <label>Quantity owned
     <input type="number" name="quantity" min="1" step="1" value="<%= v('quantity') || 1 %>" <%= ro %>>

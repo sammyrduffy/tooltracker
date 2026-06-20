@@ -615,10 +615,10 @@ router.post('/tools', checkPermission('manager', 'field_user'), upload.single('p
   }
   const shortId = generateUniqueShortId();
   db.prepare(`
-    INSERT INTO tools (short_id, name, description, serial_number, category,
+    INSERT INTO tools (short_id, name, description, serial_number, model_number, category,
                        purchase_value, billable_rate, quantity, condition_notes, photo, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')
-  `).run(shortId, data.name, data.description, data.serial_number, data.category,
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')
+  `).run(shortId, data.name, data.description, data.serial_number, data.model_number, data.category,
          data.purchase_value, data.billable_rate, data.quantity, data.condition_notes,
          req.file ? req.file.filename : null);
   req.session.flash = { type: 'success', text: '✓ Tool added' };
@@ -642,11 +642,11 @@ router.post('/tools/:id', checkPermission('manager'), upload.single('photo'), up
     });
   }
   db.prepare(`
-    UPDATE tools SET name = ?, description = ?, serial_number = ?, category = ?,
+    UPDATE tools SET name = ?, description = ?, serial_number = ?, model_number = ?, category = ?,
            purchase_value = ?, billable_rate = ?, quantity = ?, condition_notes = ?,
            photo = COALESCE(?, photo)
     WHERE id = ?
-  `).run(data.name, data.description, data.serial_number, data.category,
+  `).run(data.name, data.description, data.serial_number, data.model_number, data.category,
          data.purchase_value, data.billable_rate, data.quantity, data.condition_notes,
          req.file ? req.file.filename : null, tool.id);
   req.session.flash = { type: 'success', text: '✓ Saved' };
@@ -759,6 +759,7 @@ function readToolForm(req) {
     name,
     description: (req.body.description || '').trim() || null,
     serial_number: (req.body.serial_number || '').trim() || null,
+    model_number: (req.body.model_number || '').trim() || null,
     category,
     purchase_value,
     billable_rate,

@@ -187,6 +187,17 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
+// Migration: tools gain an optional "model_number" (the manufacturer's model,
+// e.g. "DCD791" — distinct from the unit's serial number).
+// ---------------------------------------------------------------------------
+(function ensureModelNumber() {
+  const cols = db.prepare('PRAGMA table_info(tools)').all();
+  if (!cols.some((c) => c.name === 'model_number')) {
+    db.prepare('ALTER TABLE tools ADD COLUMN model_number TEXT').run();
+  }
+})();
+
+// ---------------------------------------------------------------------------
 // Migration: sites gain an optional "is_home" flag. Gateways at a home site
 // auto-check tools back in when their beacon is detected there.
 // ---------------------------------------------------------------------------
