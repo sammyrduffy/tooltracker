@@ -33,10 +33,13 @@ API_URL     = os.environ.get("API_URL",     "https://tooltracker-hlrd.onrender.c
 BEACON_UUID = os.environ.get("BEACON_UUID", "FDA50693-A4E2-4FB1-AFCF-C6EB07647825")
 # ---------------------------------------------------------------------------
 
-POST_INTERVAL   = 5      # seconds between POST batches
-RETRY_DELAY     = 10     # seconds to wait after a failed POST before retrying
-MAX_RETRIES     = 5      # give up on a batch after this many failures
-SCAN_RESTART    = 30     # seconds to wait before restarting a crashed scanner
+POST_INTERVAL      = 5    # seconds between POST batches
+RETRY_DELAY        = 10   # seconds to wait after a failed POST before retrying
+MAX_RETRIES        = 5    # give up on a batch after this many failures
+SCAN_RESTART       = 30   # seconds to wait before restarting a crashed scanner
+HEARTBEAT_INTERVAL = 60   # seconds between "I'm powered on" pings
+# Derived from API_URL by default (".../api/beacon-data" -> ".../api/heartbeat").
+HEARTBEAT_URL = os.environ.get("HEARTBEAT_URL", API_URL.rsplit("/", 1)[0] + "/heartbeat")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -130,9 +133,23 @@ async def post_loop():
                     log.error("Giving up on batch of %d sighting(s)", len(batch))
 
 
+async def heartbeat_loop():
+    """Pings the server every HEARTBEAT_INTERVAL seconds, independent of the
+    sightings queue, so the dashboard knows this Pi is powered on and online
+    even when no tagged tool happens to be in range."""
+    session = requests.Session()
+    while True:
+        try:
+            r = session.post(HEARTBEAT_URL, json={"scanner_key": SCANNER_KEY}, timeout=10)
+            r.raise_for_status()
+        except Exception as exc:
+            log.warning("Heartbeat failed: %s", exc)
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+
 async def main():
     log.info("Tool Tracker gateway starting — API: %s", API_URL)
-    await asyncio.gather(scan_loop(), post_loop())
+    await asyncio.gather(scan_loop(), post_loop(), heartbeat_loop())
 
 
 if __name__ == "__main__":

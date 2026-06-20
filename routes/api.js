@@ -18,7 +18,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
 const { normalizePayload } = require('../lib/ble/normalize');
-const { ingestSighting, stats } = require('../lib/ble/ingest');
+const { ingestSighting, stats, heartbeat } = require('../lib/ble/ingest');
 
 // Parse JSON bodies for this router only. The limit guards against a gateway
 // (or a bad actor) posting an enormous batch that could exhaust memory.
@@ -39,6 +39,16 @@ router.post('/beacon-data', (req, res) => {
     rejected: sightings.length - accepted, // shed only if the queue is flooded
     queueDepth: stats().queueDepth,
   });
+});
+
+// --- Heartbeat: "I'm powered on" even with no beacons in range --------------
+// Gateways call this on their own timer, independent of beacon sightings, so
+// a Pi sitting somewhere with no tagged tool nearby still shows as online.
+router.post('/heartbeat', (req, res) => {
+  const scannerKey = req.body && req.body.scanner_key;
+  if (!scannerKey) return res.status(400).json({ error: 'scanner_key required' });
+  heartbeat(scannerKey);
+  res.status(204).end();
 });
 
 // --- Read: current position of each tracked tool ----------------------------

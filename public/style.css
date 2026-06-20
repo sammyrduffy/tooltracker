@@ -665,6 +665,15 @@ a.stat { color: inherit; } a.stat:active { background: var(--card-press); opacit
   .site-map { aspect-ratio: 16 / 9; width: 100%; }
 }
 
+/* ---- Gateway online/offline status dot ------------------------------------ */
+.status-dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  margin-right: .4rem; vertical-align: middle;
+}
+.status-dot--online  { background: var(--go);     box-shadow: 0 0 5px var(--go); }
+.status-dot--stale    { background: var(--in); }
+.status-dot--offline  { background: var(--danger); }
+
 /* ---- Audit mode ---------------------------------------------------------- */
 .audit-counter {
   text-align: center; font-size: 2.5rem; font-weight: 800;

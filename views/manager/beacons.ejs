@@ -48,9 +48,12 @@
       </tr>
     </thead>
     <tbody>
-      <% scanners.forEach(function(sc) { %>
+      <% scanners.forEach(function(sc) { const st = h.scannerStatus(sc.last_seen); %>
         <tr>
-          <td><%= sc.scanner_key %></td>
+          <td>
+            <span class="status-dot status-dot--<%= st %>" title="<%= h.SCANNER_STATUS_LABELS[st] %>"></span>
+            <%= sc.scanner_key %>
+          </td>
           <td colspan="3">
             <form method="post" action="/manager/scanners/<%= sc.id %>/site" class="form-inline">
               <input type="text" name="name" placeholder="Name (optional)" value="<%= sc.name || '' %>">
@@ -60,7 +63,9 @@
                   <option value="<%= s.id %>" <%= sc.site_id === s.id ? 'selected' : '' %>><%= s.name %></option>
                 <% }) %>
               </select>
-              <span class="muted small"><%= sc.last_seen ? h.durationSince(sc.last_seen) + ' ago' : 'never' %></span>
+              <span class="muted small">
+                <%= h.SCANNER_STATUS_LABELS[st] %> · <%= sc.last_seen ? h.durationSince(sc.last_seen) + ' ago' : 'never' %>
+              </span>
               <button type="submit" class="btn btn-ghost btn-sm">Save</button>
             </form>
           </td>
