@@ -1,45 +1,11 @@
 <%- include('../partials/head', { title: 'Print labels' }) %>
 
 <%
-  // Category abbreviations shown on printed labels
-  const CAT_ABBR = {
-    clamps: 'CLMP', corded_tools: 'CORD', corded_tools_and_accessories: 'CORD-ACC',
-    drill: 'DRL', fans: 'FAN', heaters: 'HTR', hoses: 'HOSE',
-    ladder: 'LDR', ladders: 'LDR', measuring_tools: 'MEAS', other: 'OTHR',
-    pneumatic_tools: 'PNEU', pumps: 'PUMP', saw: 'SAW', scaffolding: 'SCAFF',
-    unassigned: 'UNA', vacuums: 'VAC',
-  };
-  function catAbbr(key) {
-    if (!key) return '';
-    return CAT_ABBR[key] || (h.CATEGORY_LABELS[key] || key).slice(0, 5).toUpperCase();
-  }
-  // Remove words from the tool name that already appear in the category label
-  // so the abbreviation prefix isn't redundant.
-  function labelName(name, catKey) {
-    const catLabel = h.CATEGORY_LABELS[catKey] || '';
-    const words = catLabel.split(/\s+/).filter(w => w.length > 3);
-    let result = name;
-    for (const w of words) {
-      result = result.replace(new RegExp('\\b' + w + '\\b', 'gi'), '');
-    }
-    return result.replace(/\s{2,}/g, ' ').trim() || name;
-  }
+  // Tool IDs (e.g. "PNEU 003") and de-duplicated names come from the shared
+  // helpers h.toolLabelId() / h.labelName(). The ID is a stable, stored
+  // per-category number — the same one shown on the tool page — not a per-print
+  // counter, so a tool's printed ID always matches what its page shows.
 
-  // Sequential number per category abbreviation, assigned in print order.
-  // Gives labels like "PNEU 001", "PNEU 002", "CORD 001", etc.
-  const _catCounters = {};
-  const _labelIds = new Map(); // tool id → "ABBR NNN"
-  for (const page of pages) {
-    for (const cell of page) {
-      if (!cell) continue;
-      const abbr = catAbbr(cell.category) || 'TOOL';
-      _catCounters[abbr] = (_catCounters[abbr] || 0) + 1;
-      _labelIds.set(cell.id, abbr + ' ' + String(_catCounters[abbr]).padStart(3, '0'));
-    }
-  }
-%>
-
-<%
   // Build a set of currently-selected tool IDs so the picker can pre-check them.
   const selectedIds = new Set(idsParam ? idsParam.split(',').map(Number).filter(Boolean) : []);
 %>
@@ -276,8 +242,8 @@
         <% } else { %>
           <div class="label">
             <img class="label__qr" src="/qr/<%= cell.short_id %>" alt="">
-            <div class="label__id"><%= _labelIds.get(cell.id) %></div>
-            <div class="label__bar"><%= labelName(cell.name, cell.category) %></div>
+            <div class="label__id"><%= h.toolLabelId(cell) || cell.short_id %></div>
+            <div class="label__bar"><%= h.labelName(cell.name, cell.category) %></div>
           </div>
         <% } %>
       <% }) %>

@@ -82,7 +82,7 @@
             <% } %>
             <span class="ti">
               <span class="tool-list__name"><%= t.name %></span>
-              <span class="ti__meta"><%= h.CATEGORY_LABELS[t.category] %> · 📍 <%= loc %><% if (t.quantity > 1) { %> · <strong><%= t.quantity - t.checked_out_qty %></strong>/<%= t.quantity %> avail.<% } %> · <code><%= t.short_id %></code></span>
+              <span class="ti__meta"><%= h.CATEGORY_LABELS[t.category] %> · 📍 <%= loc %><% if (t.quantity > 1) { %> · <strong><%= t.quantity - t.checked_out_qty %></strong>/<%= t.quantity %> avail.<% } %> · <code><%= h.toolLabelId(t) || t.short_id %></code></span>
             </span>
             <span class="badge badge--<%= t.status %>"><%= h.STATUS_LABELS[t.status] %></span>
           </a>

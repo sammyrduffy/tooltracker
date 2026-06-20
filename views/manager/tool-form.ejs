@@ -115,7 +115,10 @@
 
   <div class="card qr-box">
     <h2>QR code</h2>
-    <p class="muted">This opens the tool's page (code <code><%= tool.short_id %></code>) when scanned.</p>
+    <% if (h.toolLabelId(tool)) { %>
+      <p class="qr-tool-id"><strong><%= h.toolLabelId(tool) %></strong></p>
+    <% } %>
+    <p class="muted small">Scanning opens this tool's page (scan code <code><%= tool.short_id %></code>).</p>
     <img class="qr-preview" src="/qr/<%= tool.short_id %>" alt="QR code for <%= tool.name %>">
     <div class="form-actions">
       <% if (canEdit) { %><a class="btn" href="/manager/labels?ids=<%= tool.id %>">Print label</a><% } %>

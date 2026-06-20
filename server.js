@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const { db, bootstrapDefaultManager, getSetting, setSetting } = require('./db');
 const helpers = require('./lib/helpers');
 const { categoryMaps } = require('./lib/categories');
+const { toolLabelId, labelName } = require('./lib/labelid');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -61,6 +62,8 @@ app.use((req, res, next) => {
   const cat = categoryMaps();
   res.locals.h = Object.assign({}, helpers, {
     CATEGORY_LABELS: cat.labels, CATEGORY_ICONS: cat.icons, CATEGORY_COLORS: cat.colors,
+    toolLabelId: (tool) => toolLabelId(tool, cat.labels),       // "PNEU 003"
+    labelName: (name, catKey) => labelName(name, catKey, cat.labels),
   });                               // formatting helpers usable in templates
   res.locals.manager = req.session.manager || null; // who (if anyone) is logged in
   res.locals.photoSrc = require('./lib/photos').photoSrc; // local filename OR Cloudinary URL → <img src>

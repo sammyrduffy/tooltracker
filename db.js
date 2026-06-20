@@ -198,6 +198,32 @@ const { materialKey } = require('./lib/materials');
 })();
 
 // ---------------------------------------------------------------------------
+// Migration: tools gain a per-category "label_seq" — the number behind the
+// human-friendly tool ID (e.g. PNEU 003). Backfill any tool missing one, per
+// category in name order (mirrors how the printed labels were numbered).
+// ---------------------------------------------------------------------------
+(function ensureToolLabelSeq() {
+  const cols = db.prepare('PRAGMA table_info(tools)').all();
+  if (!cols.some((c) => c.name === 'label_seq')) {
+    db.prepare('ALTER TABLE tools ADD COLUMN label_seq INTEGER').run();
+  }
+  const missing = db.prepare('SELECT id, category FROM tools WHERE label_seq IS NULL ORDER BY name').all();
+  if (missing.length) {
+    const counters = {};
+    for (const r of db.prepare(
+      'SELECT category, MAX(label_seq) AS m FROM tools WHERE label_seq IS NOT NULL GROUP BY category'
+    ).all()) {
+      counters[r.category] = r.m || 0;
+    }
+    const upd = db.prepare('UPDATE tools SET label_seq = ? WHERE id = ?');
+    for (const r of missing) {
+      counters[r.category] = (counters[r.category] || 0) + 1;
+      upd.run(counters[r.category], r.id);
+    }
+  }
+})();
+
+// ---------------------------------------------------------------------------
 // Migration: sites gain an optional "is_home" flag. Gateways at a home site
 // auto-check tools back in when their beacon is detected there.
 // ---------------------------------------------------------------------------

@@ -606,6 +606,13 @@ const getOpenIssue = db.prepare(`
   ORDER BY i.id DESC LIMIT 1
 `);
 
+// Next sequence number within a category, behind the human-friendly tool ID.
+function nextLabelSeq(category) {
+  return db.prepare(
+    'SELECT COALESCE(MAX(label_seq), 0) + 1 AS n FROM tools WHERE category = ?'
+  ).get(category).n;
+}
+
 router.post('/tools', checkPermission('manager', 'field_user'), upload.single('photo'), uploadToCloud, (req, res) => {
   const data = readToolForm(req);
   if (data.error) {
@@ -616,11 +623,11 @@ router.post('/tools', checkPermission('manager', 'field_user'), upload.single('p
   const shortId = generateUniqueShortId();
   db.prepare(`
     INSERT INTO tools (short_id, name, description, serial_number, model_number, category,
-                       purchase_value, billable_rate, quantity, condition_notes, photo, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')
+                       purchase_value, billable_rate, quantity, condition_notes, photo, status, label_seq)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?)
   `).run(shortId, data.name, data.description, data.serial_number, data.model_number, data.category,
          data.purchase_value, data.billable_rate, data.quantity, data.condition_notes,
-         req.file ? req.file.filename : null);
+         req.file ? req.file.filename : null, nextLabelSeq(data.category));
   req.session.flash = { type: 'success', text: '✓ Tool added' };
   res.redirect('/manager/tools');
 });
@@ -641,14 +648,19 @@ router.post('/tools/:id', checkPermission('manager'), upload.single('photo'), up
       openIssue: getOpenIssue.get(tool.id) || null,
     });
   }
+  // If the category changed, give the tool a fresh number in its new category
+  // (keeps every ID unique and matching its category). Otherwise keep it.
+  const labelSeq = (data.category !== tool.category || tool.label_seq == null)
+    ? nextLabelSeq(data.category)
+    : tool.label_seq;
   db.prepare(`
     UPDATE tools SET name = ?, description = ?, serial_number = ?, model_number = ?, category = ?,
            purchase_value = ?, billable_rate = ?, quantity = ?, condition_notes = ?,
-           photo = COALESCE(?, photo)
+           label_seq = ?, photo = COALESCE(?, photo)
     WHERE id = ?
   `).run(data.name, data.description, data.serial_number, data.model_number, data.category,
          data.purchase_value, data.billable_rate, data.quantity, data.condition_notes,
-         req.file ? req.file.filename : null, tool.id);
+         labelSeq, req.file ? req.file.filename : null, tool.id);
   req.session.flash = { type: 'success', text: '✓ Saved' };
   res.redirect('/manager/tools');
 });
